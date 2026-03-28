@@ -57,12 +57,12 @@ class EventTest {
     Event event = new Event(SUBJECT, "value", null, null, null);
 
     assertThat(event.identifier()).isNotNull();
-    assertThat(event.identifier().clazz()).isEqualTo(Event.class);
+    assertThat(event.identifier().uuid()).isNotNull();
   }
 
   @Test
   void constructorPreservesProvidedIdentifier() {
-    Identifier id = new Identifier(Event.class);
+    Identifier id = new Identifier();
 
     Event event = new Event(SUBJECT, "value", id, null, null);
 
@@ -115,7 +115,7 @@ class EventTest {
 
   @Test
   void fromCopiesAllFields() {
-    Identifier id = new Identifier(Event.class);
+    Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("A"));
     Event original = new Event(SUBJECT, "original", id, ts, tags);
@@ -170,7 +170,7 @@ class EventTest {
 
   @Test
   void builderWithAllFields() {
-    Identifier id = new Identifier(Event.class);
+    Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("X"));
 

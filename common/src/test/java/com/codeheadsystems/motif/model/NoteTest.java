@@ -74,12 +74,12 @@ class NoteTest {
     Note note = new Note(SUBJECT, "value", null, null, null, null);
 
     assertThat(note.identifier()).isNotNull();
-    assertThat(note.identifier().clazz()).isEqualTo(Note.class);
+    assertThat(note.identifier().uuid()).isNotNull();
   }
 
   @Test
   void constructorPreservesProvidedIdentifier() {
-    Identifier id = new Identifier(Note.class);
+    Identifier id = new Identifier();
 
     Note note = new Note(SUBJECT, "value", null, id, null, null);
 
@@ -132,7 +132,7 @@ class NoteTest {
 
   @Test
   void fromCopiesAllFields() {
-    Identifier id = new Identifier(Note.class);
+    Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("A"));
     Event event = Event.builder(SUBJECT, "event-value").build();
@@ -190,7 +190,7 @@ class NoteTest {
 
   @Test
   void builderWithAllFields() {
-    Identifier id = new Identifier(Note.class);
+    Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("X"));
     Event event = Event.builder(SUBJECT, "event-value").build();

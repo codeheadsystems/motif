@@ -9,72 +9,40 @@ import org.junit.jupiter.api.Test;
 class IdentifierTest {
 
   @Test
-  void canonicalConstructorStoresClassAndUuid() {
+  void canonicalConstructorStoresUuid() {
     UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
 
-    Identifier identifier = new Identifier(TestPerson.class, uuid);
+    Identifier identifier = new Identifier(uuid);
 
-    assertThat(identifier.clazz()).isEqualTo(TestPerson.class);
     assertThat(identifier.uuid()).isEqualTo(uuid);
   }
 
   @Test
-  void canonicalConstructorRejectsNullClass() {
-    UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
-
-    assertThatThrownBy(() -> new Identifier(null, uuid))
-        .isInstanceOf(NullPointerException.class)
-        .hasMessage("class cannot be null");
-  }
-
-  @Test
   void canonicalConstructorRejectsNullUuid() {
-    assertThatThrownBy(() -> new Identifier(TestPerson.class, null))
+    assertThatThrownBy(() -> new Identifier(null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("uuid cannot be null");
   }
 
   @Test
-  void convenienceConstructorPreservesClassAndGeneratesUuid() {
-    Identifier identifier = new Identifier(TestPerson.class);
+  void defaultConstructorGeneratesUuid() {
+    Identifier identifier = new Identifier();
 
-    assertThat(identifier.clazz()).isEqualTo(TestPerson.class);
     assertThat(identifier.uuid()).isNotNull();
-    assertThat(identifier.formatted())
-        .isEqualTo(TestPerson.class.getSimpleName() + ":" + identifier.uuid());
   }
 
   @Test
-  void formattedUsesSimpleClassNameAndUuid() {
-    UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
-    Identifier identifier = new Identifier(TestPerson.class, uuid);
-
-    assertThat(identifier.formatted())
-        .isEqualTo(TestPerson.class.getSimpleName() + ":123e4567-e89b-12d3-a456-426614174000");
-  }
-
-  @Test
-  void equalityAndHashCodeDependOnClassAndUuid() {
+  void equalityAndHashCodeDependOnUuid() {
     UUID uuid = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
 
-    Identifier left = new Identifier(TestPerson.class, uuid);
-    Identifier same = new Identifier(TestPerson.class, uuid);
-    Identifier differentClass = new Identifier(TestGroup.class, uuid);
-    Identifier differentUuid = new Identifier(TestPerson.class,
+    Identifier left = new Identifier(uuid);
+    Identifier same = new Identifier(uuid);
+    Identifier different = new Identifier(
         UUID.fromString("123e4567-e89b-12d3-a456-426614174001"));
 
     assertThat(left)
         .isEqualTo(same)
         .hasSameHashCodeAs(same)
-        .isNotEqualTo(differentClass)
-        .isNotEqualTo(differentUuid);
+        .isNotEqualTo(different);
   }
-
-  private static final class TestPerson {
-  }
-
-  private static final class TestGroup {
-  }
-
-
 }

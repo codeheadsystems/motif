@@ -1,7 +1,6 @@
 @startuml
 
 class Identifier {
-  clazz : Class
   uuid : UUID
 }
 class Category {
@@ -15,6 +14,7 @@ class Timestamp {
 }
 class Subject {
   value : String
+  identifier : Identifier
 }
 class Event {
   value : String

@@ -18,7 +18,7 @@ public record Note(Subject subject,
       throw new IllegalArgumentException("value cannot be longer than 4096 characters");
     }
     tags = Objects.requireNonNullElseGet(tags, List::of);
-    identifier = Objects.requireNonNullElseGet(identifier, () -> new Identifier(Note.class));
+    identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
     timestamp = Objects.requireNonNullElse(timestamp, new Timestamp());
   }
 

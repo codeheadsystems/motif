@@ -22,41 +22,41 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(EventDao.EventRowMapper.class)
 public interface EventDao {
 
+  String SELECT_WITH_SUBJECT = "SELECT e.identifier_uuid, e.subject_uuid, e.value, e.timestamp, "
+      + "s.category AS subject_category, s.value AS subject_value, "
+      + "s.identifier_uuid AS subject_identifier_uuid "
+      + "FROM events e JOIN subjects s ON e.subject_uuid = s.identifier_uuid";
+
   // --- SQL-level methods ---
 
-  @SqlUpdate("INSERT INTO events (identifier_class, identifier_uuid, subject_category, subject_value, value, timestamp) "
-      + "VALUES (:clazz, :uuid, :category, :subject, :value, :timestamp) "
-      + "ON CONFLICT (identifier_class, identifier_uuid) DO UPDATE SET "
-      + "subject_category = EXCLUDED.subject_category, "
-      + "subject_value = EXCLUDED.subject_value, "
+  @SqlUpdate("INSERT INTO events (identifier_uuid, subject_uuid, value, timestamp) "
+      + "VALUES (:uuid, :subjectUuid, :value, :timestamp) "
+      + "ON CONFLICT (identifier_uuid) DO UPDATE SET "
+      + "subject_uuid = EXCLUDED.subject_uuid, "
       + "value = EXCLUDED.value, "
       + "timestamp = EXCLUDED.timestamp")
-  void upsert(@Bind("clazz") String clazz,
-              @Bind("uuid") UUID uuid,
-              @Bind("category") String category,
-              @Bind("subject") String subject,
+  void upsert(@Bind("uuid") UUID uuid,
+              @Bind("subjectUuid") UUID subjectUuid,
               @Bind("value") String value,
               @Bind("timestamp") OffsetDateTime timestamp);
 
-  @SqlQuery("SELECT * FROM events WHERE identifier_class = :clazz AND identifier_uuid = :uuid")
-  Optional<Event> findByIdentifier(@Bind("clazz") String clazz, @Bind("uuid") UUID uuid);
+  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.identifier_uuid = :uuid")
+  Optional<Event> findByIdentifier(@Bind("uuid") UUID uuid);
 
-  @SqlUpdate("DELETE FROM events WHERE identifier_class = :clazz AND identifier_uuid = :uuid")
-  int deleteByIdentifier(@Bind("clazz") String clazz, @Bind("uuid") UUID uuid);
+  @SqlUpdate("DELETE FROM events WHERE identifier_uuid = :uuid")
+  int deleteByIdentifier(@Bind("uuid") UUID uuid);
 
-  @SqlQuery("SELECT * FROM events WHERE subject_category = :category AND subject_value = :subject "
-      + "ORDER BY timestamp")
-  List<Event> findBySubject(@Bind("category") String category, @Bind("subject") String subject);
+  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.subject_uuid = :subjectUuid ORDER BY e.timestamp")
+  List<Event> findBySubjectUuid(@Bind("subjectUuid") UUID subjectUuid);
 
-  @SqlQuery("SELECT * FROM events WHERE timestamp >= :from AND timestamp <= :to "
-      + "ORDER BY timestamp")
+  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.timestamp >= :from AND e.timestamp <= :to "
+      + "ORDER BY e.timestamp")
   List<Event> findByTimeRange(@Bind("from") OffsetDateTime from, @Bind("to") OffsetDateTime to);
 
-  @SqlQuery("SELECT * FROM events WHERE subject_category = :category AND subject_value = :subject "
-      + "AND timestamp >= :from AND timestamp <= :to "
-      + "ORDER BY timestamp")
-  List<Event> findBySubjectAndTimeRange(@Bind("category") String category,
-                                        @Bind("subject") String subject,
+  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.subject_uuid = :subjectUuid "
+      + "AND e.timestamp >= :from AND e.timestamp <= :to "
+      + "ORDER BY e.timestamp")
+  List<Event> findBySubjectAndTimeRange(@Bind("subjectUuid") UUID subjectUuid,
                                         @Bind("from") OffsetDateTime from,
                                         @Bind("to") OffsetDateTime to);
 
@@ -64,24 +64,22 @@ public interface EventDao {
 
   default void store(Event event) {
     upsert(
-        event.identifier().clazz().getSimpleName(),
         event.identifier().uuid(),
-        event.subject().category().value(),
-        event.subject().value(),
+        event.subject().identifier().uuid(),
         event.value(),
         event.timestamp().timestamp().atOffset(ZoneOffset.UTC));
   }
 
   default Optional<Event> get(Identifier identifier) {
-    return findByIdentifier(identifier.clazz().getSimpleName(), identifier.uuid());
+    return findByIdentifier(identifier.uuid());
   }
 
   default boolean delete(Identifier identifier) {
-    return deleteByIdentifier(identifier.clazz().getSimpleName(), identifier.uuid()) > 0;
+    return deleteByIdentifier(identifier.uuid()) > 0;
   }
 
   default List<Event> findBySubject(Subject subject) {
-    return findBySubject(subject.category().value(), subject.value());
+    return findBySubjectUuid(subject.identifier().uuid());
   }
 
   default List<Event> findByTimeRange(Timestamp from, Timestamp to) {
@@ -92,7 +90,7 @@ public interface EventDao {
 
   default List<Event> findBySubjectAndTimeRange(Subject subject, Timestamp from, Timestamp to) {
     return findBySubjectAndTimeRange(
-        subject.category().value(), subject.value(),
+        subject.identifier().uuid(),
         from.timestamp().atOffset(ZoneOffset.UTC),
         to.timestamp().atOffset(ZoneOffset.UTC));
   }
@@ -102,11 +100,12 @@ public interface EventDao {
   class EventRowMapper implements RowMapper<Event> {
     @Override
     public Event map(ResultSet rs, StatementContext ctx) throws SQLException {
-      Subject subject = new Subject(
-          new Category(rs.getString("subject_category")),
-          rs.getString("subject_value"));
+      Subject subject = Subject.builder(
+              new Category(rs.getString("subject_category")),
+              rs.getString("subject_value"))
+          .identifier(new Identifier(rs.getObject("subject_identifier_uuid", UUID.class)))
+          .build();
       Identifier identifier = new Identifier(
-          Event.class,
           rs.getObject("identifier_uuid", UUID.class));
       Timestamp timestamp = new Timestamp(
           rs.getTimestamp("timestamp").toInstant());

@@ -2,9 +2,7 @@ package com.codeheadsystems.motif.server.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.codeheadsystems.motif.model.Event;
 import com.codeheadsystems.motif.model.Identifier;
-import com.codeheadsystems.motif.model.Note;
 import com.codeheadsystems.motif.model.Tag;
 import java.util.List;
 import org.flywaydb.core.Flyway;
@@ -47,7 +45,7 @@ class TagsDaoTest {
 
   @BeforeEach
   void setUp() {
-    identifier = new Identifier(Event.class);
+    identifier = new Identifier();
     jdbi.useHandle(handle -> handle.execute("DELETE FROM tags"));
     dao = jdbi.onDemand(TagsDao.class);
   }
@@ -98,8 +96,8 @@ class TagsDaoTest {
 
   @Test
   void tagsAreIsolatedByIdentifier() {
-    Identifier id1 = new Identifier(Event.class);
-    Identifier id2 = new Identifier(Note.class);
+    Identifier id1 = new Identifier();
+    Identifier id2 = new Identifier();
 
     dao.addTags(id1, List.of(new Tag("SHARED"), new Tag("ONLY1")));
     dao.addTags(id2, List.of(new Tag("SHARED"), new Tag("ONLY2")));
@@ -112,8 +110,8 @@ class TagsDaoTest {
 
   @Test
   void removeTagsDoesNotAffectOtherIdentifiers() {
-    Identifier id1 = new Identifier(Event.class);
-    Identifier id2 = new Identifier(Event.class);
+    Identifier id1 = new Identifier();
+    Identifier id2 = new Identifier();
 
     dao.addTags(id1, List.of(new Tag("TAG")));
     dao.addTags(id2, List.of(new Tag("TAG")));

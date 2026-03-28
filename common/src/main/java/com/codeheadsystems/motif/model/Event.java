@@ -16,7 +16,7 @@ public record Event(Subject subject,
     if (value.length() > 256) {
       throw new IllegalArgumentException("value cannot be longer than 256 characters");
     }
-    identifier = Objects.requireNonNullElseGet(identifier, () -> new Identifier(Event.class));
+    identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
     timestamp = Objects.requireNonNullElse(timestamp, new Timestamp());
     tags = Objects.requireNonNullElseGet(tags, List::of);
   }
