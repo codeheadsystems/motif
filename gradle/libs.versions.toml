@@ -4,7 +4,7 @@
 [versions]
 assertj = "3.27.7"
 jspecify = "1.0.0"
-junit-jupiter = "6.0.1"
+junit-jupiter = "6.0.3"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
