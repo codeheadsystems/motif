@@ -9,7 +9,6 @@ import com.codeheadsystems.motif.model.Timestamp;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,8 +30,6 @@ public interface EventDao {
       + "FROM events e "
       + "JOIN subjects s ON e.subject_uuid = s.uuid "
       + "JOIN owners o ON e.owner_uuid = o.uuid";
-
-  // --- SQL-level methods ---
 
   @SqlUpdate("INSERT INTO events (uuid, owner_uuid, subject_uuid, value, timestamp) "
       + "VALUES (:uuid, :ownerUuid, :subjectUuid, :value, :timestamp) "
@@ -72,15 +69,12 @@ public interface EventDao {
                                               @Bind("from") OffsetDateTime from,
                                               @Bind("to") OffsetDateTime to);
 
-  // --- Domain-level methods ---
-
   default void store(Event event) {
-    upsert(
-        event.identifier().uuid(),
+    upsert(event.identifier().uuid(),
         event.owner().identifier().uuid(),
         event.subject().identifier().uuid(),
         event.value(),
-        event.timestamp().timestamp().atOffset(ZoneOffset.UTC));
+        event.timestamp().toOffsetDateTime());
   }
 
   default Optional<Event> get(Owner owner, Identifier identifier) {
@@ -96,22 +90,16 @@ public interface EventDao {
   }
 
   default List<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to) {
-    return findByOwnerAndTimeRange(
-        owner.identifier().uuid(),
-        from.timestamp().atOffset(ZoneOffset.UTC),
-        to.timestamp().atOffset(ZoneOffset.UTC));
+    return findByOwnerAndTimeRange(owner.identifier().uuid(),
+        from.toOffsetDateTime(), to.toOffsetDateTime());
   }
 
   default List<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
                                                  Timestamp from, Timestamp to) {
-    return findByOwnerSubjectAndTimeRange(
-        owner.identifier().uuid(),
+    return findByOwnerSubjectAndTimeRange(owner.identifier().uuid(),
         subject.identifier().uuid(),
-        from.timestamp().atOffset(ZoneOffset.UTC),
-        to.timestamp().atOffset(ZoneOffset.UTC));
+        from.toOffsetDateTime(), to.toOffsetDateTime());
   }
-
-  // --- Row mapper ---
 
   class EventRowMapper implements RowMapper<Event> {
     @Override

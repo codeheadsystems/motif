@@ -16,8 +16,6 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(OwnerDao.OwnerRowMapper.class)
 public interface OwnerDao {
 
-  // --- SQL-level methods ---
-
   @SqlUpdate("INSERT INTO owners (uuid, value) "
       + "VALUES (:uuid, :value) "
       + "ON CONFLICT (uuid) DO UPDATE SET "
@@ -32,8 +30,6 @@ public interface OwnerDao {
 
   @SqlQuery("SELECT * FROM owners WHERE value = :value")
   Optional<Owner> findByValue(@Bind("value") String value);
-
-  // --- Domain-level methods ---
 
   default void store(Owner owner) {
     upsert(owner.identifier().uuid(), owner.value());
@@ -50,8 +46,6 @@ public interface OwnerDao {
   default Optional<Owner> find(String value) {
     return findByValue(value.strip().toUpperCase());
   }
-
-  // --- Row mapper ---
 
   class OwnerRowMapper implements RowMapper<Owner> {
     @Override

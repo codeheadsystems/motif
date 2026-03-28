@@ -2,6 +2,8 @@ package com.codeheadsystems.motif.model;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.Objects;
 
@@ -40,6 +42,15 @@ public record Timestamp(Instant timestamp) {
    */
   public String toIso() {
     return timestamp.toString();
+  }
+
+  /**
+   * Returns this timestamp as an OffsetDateTime in UTC.
+   *
+   * @return the UTC OffsetDateTime representation.
+   */
+  public OffsetDateTime toOffsetDateTime() {
+    return timestamp.atOffset(ZoneOffset.UTC);
   }
 
 }

@@ -23,8 +23,6 @@ public interface SubjectDao {
       + "o.value AS owner_value "
       + "FROM subjects s JOIN owners o ON s.owner_uuid = o.uuid";
 
-  // --- SQL-level methods ---
-
   @SqlUpdate("INSERT INTO subjects (uuid, owner_uuid, category, value) "
       + "VALUES (:uuid, :ownerUuid, :category, :value) "
       + "ON CONFLICT (uuid) DO UPDATE SET "
@@ -53,8 +51,6 @@ public interface SubjectDao {
                                                  @Bind("category") String category,
                                                  @Bind("value") String value);
 
-  // --- Domain-level methods ---
-
   default void store(Subject subject) {
     upsert(subject.identifier().uuid(),
         subject.owner().identifier().uuid(),
@@ -77,8 +73,6 @@ public interface SubjectDao {
   default Optional<Subject> find(Owner owner, Category category, String value) {
     return findByOwnerCategoryAndValue(owner.identifier().uuid(), category.value(), value);
   }
-
-  // --- Row mapper ---
 
   class SubjectRowMapper implements RowMapper<Subject> {
     @Override
