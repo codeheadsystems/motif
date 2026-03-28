@@ -9,21 +9,29 @@ import org.junit.jupiter.api.Test;
 
 class NoteTest {
 
+  private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(CATEGORY, "test-subject");
+  private static final Subject SUBJECT = new Subject(OWNER, CATEGORY, "test-subject");
 
   // --- Constructor tests ---
 
   @Test
+  void constructorRejectsNullOwner() {
+    assertThatThrownBy(() -> new Note(null, SUBJECT, "value", null, null, null, null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("owner cannot be null");
+  }
+
+  @Test
   void constructorRejectsNullSubject() {
-    assertThatThrownBy(() -> new Note(null, "value", null, null, null, null))
+    assertThatThrownBy(() -> new Note(OWNER, null, "value", null, null, null, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
   void constructorDefaultsNullValueToEmpty() {
-    Note note = new Note(SUBJECT, null, null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, null, null, null, null, null);
 
     assertThat(note.value()).isEmpty();
   }
@@ -32,7 +40,7 @@ class NoteTest {
   void constructorRejectsValueLongerThan4096Characters() {
     String tooLong = "x".repeat(4097);
 
-    assertThatThrownBy(() -> new Note(SUBJECT, tooLong, null, null, null, null))
+    assertThatThrownBy(() -> new Note(OWNER, SUBJECT, tooLong, null, null, null, null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("value cannot be longer than 4096 characters");
   }
@@ -41,21 +49,21 @@ class NoteTest {
   void constructorAcceptsValueAt4096Characters() {
     String maxLength = "x".repeat(4096);
 
-    Note note = new Note(SUBJECT, maxLength, null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, maxLength, null, null, null, null);
 
     assertThat(note.value()).hasSize(4096);
   }
 
   @Test
   void constructorStripsValue() {
-    Note note = new Note(SUBJECT, "  hello world  ", null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, "  hello world  ", null, null, null, null);
 
     assertThat(note.value()).isEqualTo("hello world");
   }
 
   @Test
   void constructorDefaultsTagsToEmptyListWhenNull() {
-    Note note = new Note(SUBJECT, "value", null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, "value", null, null, null, null);
 
     assertThat(note.tags()).isNotNull().isEmpty();
   }
@@ -64,14 +72,14 @@ class NoteTest {
   void constructorPreservesProvidedTags() {
     List<Tag> tags = List.of(new Tag("A"), new Tag("B"));
 
-    Note note = new Note(SUBJECT, "value", tags, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, "value", tags, null, null, null);
 
     assertThat(note.tags()).containsExactly(new Tag("A"), new Tag("B"));
   }
 
   @Test
   void constructorDefaultsIdentifierWhenNull() {
-    Note note = new Note(SUBJECT, "value", null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, "value", null, null, null, null);
 
     assertThat(note.identifier()).isNotNull();
     assertThat(note.identifier().uuid()).isNotNull();
@@ -81,7 +89,7 @@ class NoteTest {
   void constructorPreservesProvidedIdentifier() {
     Identifier id = new Identifier();
 
-    Note note = new Note(SUBJECT, "value", null, id, null, null);
+    Note note = new Note(OWNER, SUBJECT, "value", null, id, null, null);
 
     assertThat(note.identifier()).isSameAs(id);
   }
@@ -89,7 +97,7 @@ class NoteTest {
   @Test
   void constructorDefaultsTimestampWhenNull() {
     Instant before = Instant.now();
-    Note note = new Note(SUBJECT, "value", null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, "value", null, null, null, null);
     Instant after = Instant.now();
 
     assertThat(note.timestamp()).isNotNull();
@@ -100,23 +108,23 @@ class NoteTest {
   void constructorPreservesProvidedTimestamp() {
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
 
-    Note note = new Note(SUBJECT, "value", null, null, null, ts);
+    Note note = new Note(OWNER, SUBJECT, "value", null, null, null, ts);
 
     assertThat(note.timestamp()).isSameAs(ts);
   }
 
   @Test
   void constructorAcceptsNullEvent() {
-    Note note = new Note(SUBJECT, "value", null, null, null, null);
+    Note note = new Note(OWNER, SUBJECT, "value", null, null, null, null);
 
     assertThat(note.event()).isNull();
   }
 
   @Test
   void constructorPreservesProvidedEvent() {
-    Event event = Event.builder(SUBJECT, "event-value").build();
+    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
 
-    Note note = new Note(SUBJECT, "value", null, null, event, null);
+    Note note = new Note(OWNER, SUBJECT, "value", null, null, event, null);
 
     assertThat(note.event()).isSameAs(event);
   }
@@ -135,8 +143,8 @@ class NoteTest {
     Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("A"));
-    Event event = Event.builder(SUBJECT, "event-value").build();
-    Note original = new Note(SUBJECT, "original", tags, id, event, ts);
+    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
+    Note original = new Note(OWNER, SUBJECT, "original", tags, id, event, ts);
 
     Note copy = Note.from(original).build();
 
@@ -145,14 +153,15 @@ class NoteTest {
 
   @Test
   void fromAllowsOverridingFields() {
-    Note original = Note.builder(SUBJECT).value("original").build();
+    Note original = Note.builder(OWNER, SUBJECT).value("original").build();
 
-    Event event = Event.builder(SUBJECT, "event-value").build();
+    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
     Note modified = Note.from(original)
         .event(event)
         .value("modified")
         .build();
 
+    assertThat(modified.owner()).isEqualTo(original.owner());
     assertThat(modified.subject()).isEqualTo(original.subject());
     assertThat(modified.identifier()).isEqualTo(original.identifier());
     assertThat(modified.timestamp()).isEqualTo(original.timestamp());
@@ -163,23 +172,31 @@ class NoteTest {
   // --- Builder tests ---
 
   @Test
+  void builderRejectsNullOwner() {
+    assertThatThrownBy(() -> Note.builder(null, SUBJECT))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("owner cannot be null");
+  }
+
+  @Test
   void builderRejectsNullSubject() {
-    assertThatThrownBy(() -> Note.builder(null))
+    assertThatThrownBy(() -> Note.builder(OWNER, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
   void builderDefaultsNullValueToEmpty() {
-    Note note = Note.builder(SUBJECT).build();
+    Note note = Note.builder(OWNER, SUBJECT).build();
 
     assertThat(note.value()).isEmpty();
   }
 
   @Test
   void builderWithDefaults() {
-    Note note = Note.builder(SUBJECT).value("note-value").build();
+    Note note = Note.builder(OWNER, SUBJECT).value("note-value").build();
 
+    assertThat(note.owner()).isEqualTo(OWNER);
     assertThat(note.subject()).isEqualTo(SUBJECT);
     assertThat(note.value()).isEqualTo("note-value");
     assertThat(note.identifier()).isNotNull();
@@ -193,9 +210,9 @@ class NoteTest {
     Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("X"));
-    Event event = Event.builder(SUBJECT, "event-value").build();
+    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
 
-    Note note = Note.builder(SUBJECT)
+    Note note = Note.builder(OWNER, SUBJECT)
         .value("note-value")
         .tags(tags)
         .identifier(id)
@@ -203,6 +220,7 @@ class NoteTest {
         .timestamp(ts)
         .build();
 
+    assertThat(note.owner()).isEqualTo(OWNER);
     assertThat(note.subject()).isEqualTo(SUBJECT);
     assertThat(note.value()).isEqualTo("note-value");
     assertThat(note.tags()).containsExactly(new Tag("X"));

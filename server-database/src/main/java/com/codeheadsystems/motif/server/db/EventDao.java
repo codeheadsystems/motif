@@ -3,6 +3,7 @@ package com.codeheadsystems.motif.server.db;
 import com.codeheadsystems.motif.model.Category;
 import com.codeheadsystems.motif.model.Event;
 import com.codeheadsystems.motif.model.Identifier;
+import com.codeheadsystems.motif.model.Owner;
 import com.codeheadsystems.motif.model.Subject;
 import com.codeheadsystems.motif.model.Timestamp;
 import java.sql.ResultSet;
@@ -22,74 +23,89 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(EventDao.EventRowMapper.class)
 public interface EventDao {
 
-  String SELECT_WITH_SUBJECT = "SELECT e.identifier_uuid, e.subject_uuid, e.value, e.timestamp, "
+  String SELECT_WITH_JOINS = "SELECT e.uuid, e.owner_uuid, e.subject_uuid, "
+      + "e.value, e.timestamp, "
       + "s.category AS subject_category, s.value AS subject_value, "
-      + "s.identifier_uuid AS subject_identifier_uuid "
-      + "FROM events e JOIN subjects s ON e.subject_uuid = s.identifier_uuid";
+      + "s.uuid AS subject_uuid, "
+      + "o.value AS owner_value "
+      + "FROM events e "
+      + "JOIN subjects s ON e.subject_uuid = s.uuid "
+      + "JOIN owners o ON e.owner_uuid = o.uuid";
 
   // --- SQL-level methods ---
 
-  @SqlUpdate("INSERT INTO events (identifier_uuid, subject_uuid, value, timestamp) "
-      + "VALUES (:uuid, :subjectUuid, :value, :timestamp) "
-      + "ON CONFLICT (identifier_uuid) DO UPDATE SET "
+  @SqlUpdate("INSERT INTO events (uuid, owner_uuid, subject_uuid, value, timestamp) "
+      + "VALUES (:uuid, :ownerUuid, :subjectUuid, :value, :timestamp) "
+      + "ON CONFLICT (uuid) DO UPDATE SET "
       + "subject_uuid = EXCLUDED.subject_uuid, "
       + "value = EXCLUDED.value, "
       + "timestamp = EXCLUDED.timestamp")
   void upsert(@Bind("uuid") UUID uuid,
+              @Bind("ownerUuid") UUID ownerUuid,
               @Bind("subjectUuid") UUID subjectUuid,
               @Bind("value") String value,
               @Bind("timestamp") OffsetDateTime timestamp);
 
-  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.identifier_uuid = :uuid")
-  Optional<Event> findByIdentifier(@Bind("uuid") UUID uuid);
+  @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid AND e.uuid = :uuid")
+  Optional<Event> findByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid,
+                                            @Bind("uuid") UUID uuid);
 
-  @SqlUpdate("DELETE FROM events WHERE identifier_uuid = :uuid")
-  int deleteByIdentifier(@Bind("uuid") UUID uuid);
+  @SqlUpdate("DELETE FROM events WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
+  int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
-  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.subject_uuid = :subjectUuid ORDER BY e.timestamp")
-  List<Event> findBySubjectUuid(@Bind("subjectUuid") UUID subjectUuid);
+  @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
+      + "AND e.subject_uuid = :subjectUuid ORDER BY e.timestamp")
+  List<Event> findByOwnerAndSubject(@Bind("ownerUuid") UUID ownerUuid,
+                                     @Bind("subjectUuid") UUID subjectUuid);
 
-  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.timestamp >= :from AND e.timestamp <= :to "
-      + "ORDER BY e.timestamp")
-  List<Event> findByTimeRange(@Bind("from") OffsetDateTime from, @Bind("to") OffsetDateTime to);
+  @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
+      + "AND e.timestamp >= :from AND e.timestamp <= :to ORDER BY e.timestamp")
+  List<Event> findByOwnerAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
+                                       @Bind("from") OffsetDateTime from,
+                                       @Bind("to") OffsetDateTime to);
 
-  @SqlQuery(SELECT_WITH_SUBJECT + " WHERE e.subject_uuid = :subjectUuid "
-      + "AND e.timestamp >= :from AND e.timestamp <= :to "
-      + "ORDER BY e.timestamp")
-  List<Event> findBySubjectAndTimeRange(@Bind("subjectUuid") UUID subjectUuid,
-                                        @Bind("from") OffsetDateTime from,
-                                        @Bind("to") OffsetDateTime to);
+  @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
+      + "AND e.subject_uuid = :subjectUuid "
+      + "AND e.timestamp >= :from AND e.timestamp <= :to ORDER BY e.timestamp")
+  List<Event> findByOwnerSubjectAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
+                                              @Bind("subjectUuid") UUID subjectUuid,
+                                              @Bind("from") OffsetDateTime from,
+                                              @Bind("to") OffsetDateTime to);
 
   // --- Domain-level methods ---
 
   default void store(Event event) {
     upsert(
         event.identifier().uuid(),
+        event.owner().identifier().uuid(),
         event.subject().identifier().uuid(),
         event.value(),
         event.timestamp().timestamp().atOffset(ZoneOffset.UTC));
   }
 
-  default Optional<Event> get(Identifier identifier) {
-    return findByIdentifier(identifier.uuid());
+  default Optional<Event> get(Owner owner, Identifier identifier) {
+    return findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
   }
 
-  default boolean delete(Identifier identifier) {
-    return deleteByIdentifier(identifier.uuid()) > 0;
+  default boolean delete(Owner owner, Identifier identifier) {
+    return deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
   }
 
-  default List<Event> findBySubject(Subject subject) {
-    return findBySubjectUuid(subject.identifier().uuid());
+  default List<Event> findBySubject(Owner owner, Subject subject) {
+    return findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid());
   }
 
-  default List<Event> findByTimeRange(Timestamp from, Timestamp to) {
-    return findByTimeRange(
+  default List<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to) {
+    return findByOwnerAndTimeRange(
+        owner.identifier().uuid(),
         from.timestamp().atOffset(ZoneOffset.UTC),
         to.timestamp().atOffset(ZoneOffset.UTC));
   }
 
-  default List<Event> findBySubjectAndTimeRange(Subject subject, Timestamp from, Timestamp to) {
-    return findBySubjectAndTimeRange(
+  default List<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
+                                                 Timestamp from, Timestamp to) {
+    return findByOwnerSubjectAndTimeRange(
+        owner.identifier().uuid(),
         subject.identifier().uuid(),
         from.timestamp().atOffset(ZoneOffset.UTC),
         to.timestamp().atOffset(ZoneOffset.UTC));
@@ -100,16 +116,19 @@ public interface EventDao {
   class EventRowMapper implements RowMapper<Event> {
     @Override
     public Event map(ResultSet rs, StatementContext ctx) throws SQLException {
-      Subject subject = Subject.builder(
+      Owner owner = Owner.builder(rs.getString("owner_value"))
+          .identifier(new Identifier(rs.getObject("owner_uuid", UUID.class)))
+          .build();
+      Subject subject = Subject.builder(owner,
               new Category(rs.getString("subject_category")),
               rs.getString("subject_value"))
-          .identifier(new Identifier(rs.getObject("subject_identifier_uuid", UUID.class)))
+          .identifier(new Identifier(rs.getObject("subject_uuid", UUID.class)))
           .build();
       Identifier identifier = new Identifier(
-          rs.getObject("identifier_uuid", UUID.class));
+          rs.getObject("uuid", UUID.class));
       Timestamp timestamp = new Timestamp(
           rs.getTimestamp("timestamp").toInstant());
-      return Event.builder(subject, rs.getString("value"))
+      return Event.builder(owner, subject, rs.getString("value"))
           .identifier(identifier)
           .timestamp(timestamp)
           .build();

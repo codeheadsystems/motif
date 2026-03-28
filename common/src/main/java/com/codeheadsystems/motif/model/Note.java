@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
-public record Note(Subject subject,
+public record Note(Owner owner,
+                   Subject subject,
                    @Nullable String value,
                    @Nullable List<Tag> tags,
                    @Nullable Identifier identifier,
@@ -12,6 +13,7 @@ public record Note(Subject subject,
                    @Nullable Timestamp timestamp) {
 
   public Note {
+    Objects.requireNonNull(owner, "owner cannot be null");
     Objects.requireNonNull(subject, "subject cannot be null");
     value = Objects.requireNonNullElse(value, "").strip();
     if (value.length() > 4096) {
@@ -26,11 +28,12 @@ public record Note(Subject subject,
     return Builder.from(note);
   }
 
-  public static Builder builder(Subject subject) {
-    return new Builder(subject);
+  public static Builder builder(Owner owner, Subject subject) {
+    return new Builder(owner, subject);
   }
 
   public static class Builder {
+    private final Owner owner;
     private final Subject subject;
     private String value;
     private List<Tag> tags;
@@ -38,13 +41,14 @@ public record Note(Subject subject,
     private Event event;
     private Timestamp timestamp;
 
-    private Builder(Subject subject) {
+    private Builder(Owner owner, Subject subject) {
+      this.owner = Objects.requireNonNull(owner, "owner cannot be null");
       this.subject = Objects.requireNonNull(subject, "subject cannot be null");
     }
 
     private static Builder from(Note note) {
       Objects.requireNonNull(note, "note cannot be null");
-      Builder builder = new Builder(note.subject());
+      Builder builder = new Builder(note.owner(), note.subject());
       builder.value = note.value();
       builder.tags = note.tags();
       builder.identifier = note.identifier();
@@ -79,7 +83,7 @@ public record Note(Subject subject,
     }
 
     public Note build() {
-      return new Note(subject, value, tags, identifier, event, timestamp);
+      return new Note(owner, subject, value, tags, identifier, event, timestamp);
     }
   }
 }

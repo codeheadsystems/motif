@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codeheadsystems.motif.model.Category;
 import com.codeheadsystems.motif.model.Identifier;
+import com.codeheadsystems.motif.model.Owner;
 import com.codeheadsystems.motif.model.Subject;
 import java.util.List;
 import java.util.Optional;
@@ -24,10 +25,12 @@ class SubjectDaoTest {
   @Container
   static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
+  private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("test-category");
 
   private static Jdbi jdbi;
-  private SubjectDao dao;
+  private SubjectDao subjectDao;
+  private OwnerDao ownerDao;
 
   @BeforeAll
   static void setupJdbi() {
@@ -36,10 +39,7 @@ class SubjectDaoTest {
     ds.setUser(POSTGRES.getUsername());
     ds.setPassword(POSTGRES.getPassword());
 
-    Flyway.configure()
-        .dataSource(ds)
-        .load()
-        .migrate();
+    Flyway.configure().dataSource(ds).load().migrate();
 
     jdbi = Jdbi.create(ds);
     jdbi.installPlugin(new SqlObjectPlugin());
@@ -50,20 +50,24 @@ class SubjectDaoTest {
     jdbi.useHandle(handle -> {
       handle.execute("DELETE FROM events");
       handle.execute("DELETE FROM subjects");
+      handle.execute("DELETE FROM owners");
     });
-    dao = jdbi.onDemand(SubjectDao.class);
+    ownerDao = jdbi.onDemand(OwnerDao.class);
+    subjectDao = jdbi.onDemand(SubjectDao.class);
+    ownerDao.store(OWNER);
   }
 
   // --- store and get ---
 
   @Test
   void storeAndRetrieveSubject() {
-    Subject subject = new Subject(CATEGORY, "test-subject");
+    Subject subject = new Subject(OWNER, CATEGORY, "test-subject");
 
-    dao.store(subject);
-    Optional<Subject> result = dao.get(subject.identifier());
+    subjectDao.store(subject);
+    Optional<Subject> result = subjectDao.get(OWNER, subject.identifier());
 
     assertThat(result).isPresent();
+    assertThat(result.get().owner().identifier().uuid()).isEqualTo(OWNER.identifier().uuid());
     assertThat(result.get().category()).isEqualTo(CATEGORY);
     assertThat(result.get().value()).isEqualTo("test-subject");
     assertThat(result.get().identifier().uuid()).isEqualTo(subject.identifier().uuid());
@@ -71,23 +75,19 @@ class SubjectDaoTest {
 
   @Test
   void getReturnsEmptyWhenNotFound() {
-    Optional<Subject> result = dao.get(new Identifier());
-
-    assertThat(result).isEmpty();
+    assertThat(subjectDao.get(OWNER, new Identifier())).isEmpty();
   }
 
   @Test
   void storeUpdatesExistingSubject() {
-    Subject original = new Subject(CATEGORY, "original");
-    dao.store(original);
+    Subject original = new Subject(OWNER, CATEGORY, "original");
+    subjectDao.store(original);
 
-    Subject updated = Subject.from(original).build();
-    // Upsert with same identifier but different category
     Category newCategory = new Category("new-category");
-    Subject updatedSubject = new Subject(newCategory, "updated", original.identifier());
-    dao.store(updatedSubject);
+    Subject updated = new Subject(OWNER, newCategory, "updated", original.identifier());
+    subjectDao.store(updated);
 
-    Optional<Subject> result = dao.get(original.identifier());
+    Optional<Subject> result = subjectDao.get(OWNER, original.identifier());
     assertThat(result).isPresent();
     assertThat(result.get().category()).isEqualTo(newCategory);
     assertThat(result.get().value()).isEqualTo("updated");
@@ -97,20 +97,16 @@ class SubjectDaoTest {
 
   @Test
   void deleteReturnsTrueWhenSubjectExists() {
-    Subject subject = new Subject(CATEGORY, "to-delete");
-    dao.store(subject);
+    Subject subject = new Subject(OWNER, CATEGORY, "to-delete");
+    subjectDao.store(subject);
 
-    boolean deleted = dao.delete(subject.identifier());
-
-    assertThat(deleted).isTrue();
-    assertThat(dao.get(subject.identifier())).isEmpty();
+    assertThat(subjectDao.delete(OWNER, subject.identifier())).isTrue();
+    assertThat(subjectDao.get(OWNER, subject.identifier())).isEmpty();
   }
 
   @Test
   void deleteReturnsFalseWhenSubjectDoesNotExist() {
-    boolean deleted = dao.delete(new Identifier());
-
-    assertThat(deleted).isFalse();
+    assertThat(subjectDao.delete(OWNER, new Identifier())).isFalse();
   }
 
   // --- findByCategory ---
@@ -119,15 +115,15 @@ class SubjectDaoTest {
   void findByCategoryReturnsMatchingSubjects() {
     Category other = new Category("other-category");
 
-    Subject s1 = new Subject(CATEGORY, "alpha");
-    Subject s2 = new Subject(CATEGORY, "beta");
-    Subject s3 = new Subject(other, "gamma");
+    Subject s1 = new Subject(OWNER, CATEGORY, "alpha");
+    Subject s2 = new Subject(OWNER, CATEGORY, "beta");
+    Subject s3 = new Subject(OWNER, other, "gamma");
 
-    dao.store(s1);
-    dao.store(s2);
-    dao.store(s3);
+    subjectDao.store(s1);
+    subjectDao.store(s2);
+    subjectDao.store(s3);
 
-    List<Subject> results = dao.findByCategory(CATEGORY);
+    List<Subject> results = subjectDao.findByCategory(OWNER, CATEGORY);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Subject::value)
@@ -136,19 +132,17 @@ class SubjectDaoTest {
 
   @Test
   void findByCategoryReturnsEmptyWhenNoMatches() {
-    Category other = new Category("nonexistent");
-
-    assertThat(dao.findByCategory(other)).isEmpty();
+    assertThat(subjectDao.findByCategory(OWNER, new Category("nonexistent"))).isEmpty();
   }
 
   // --- find by category and value ---
 
   @Test
   void findByCategoryAndValueReturnsMatch() {
-    Subject subject = new Subject(CATEGORY, "unique-value");
-    dao.store(subject);
+    Subject subject = new Subject(OWNER, CATEGORY, "unique-value");
+    subjectDao.store(subject);
 
-    Optional<Subject> result = dao.find(CATEGORY, "unique-value");
+    Optional<Subject> result = subjectDao.find(OWNER, CATEGORY, "unique-value");
 
     assertThat(result).isPresent();
     assertThat(result.get().identifier().uuid()).isEqualTo(subject.identifier().uuid());
@@ -156,8 +150,25 @@ class SubjectDaoTest {
 
   @Test
   void findByCategoryAndValueReturnsEmptyWhenNotFound() {
-    Optional<Subject> result = dao.find(CATEGORY, "nonexistent");
+    assertThat(subjectDao.find(OWNER, CATEGORY, "nonexistent")).isEmpty();
+  }
 
-    assertThat(result).isEmpty();
+  // --- owner isolation ---
+
+  @Test
+  void subjectsAreIsolatedByOwner() {
+    Owner other = new Owner("OTHER-OWNER");
+    ownerDao.store(other);
+
+    Subject s1 = new Subject(OWNER, CATEGORY, "shared-name");
+    Subject s2 = new Subject(other, CATEGORY, "shared-name");
+
+    subjectDao.store(s1);
+    subjectDao.store(s2);
+
+    assertThat(subjectDao.findByCategory(OWNER, CATEGORY)).hasSize(1);
+    assertThat(subjectDao.findByCategory(other, CATEGORY)).hasSize(1);
+    assertThat(subjectDao.get(OWNER, s1.identifier())).isPresent();
+    assertThat(subjectDao.get(other, s1.identifier())).isEmpty();
   }
 }

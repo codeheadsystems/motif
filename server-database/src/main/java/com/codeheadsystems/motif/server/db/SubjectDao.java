@@ -2,6 +2,7 @@ package com.codeheadsystems.motif.server.db;
 
 import com.codeheadsystems.motif.model.Category;
 import com.codeheadsystems.motif.model.Identifier;
+import com.codeheadsystems.motif.model.Owner;
 import com.codeheadsystems.motif.model.Subject;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,52 +19,63 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(SubjectDao.SubjectRowMapper.class)
 public interface SubjectDao {
 
+  String SELECT_WITH_OWNER = "SELECT s.uuid, s.owner_uuid, s.category, s.value, "
+      + "o.value AS owner_value "
+      + "FROM subjects s JOIN owners o ON s.owner_uuid = o.uuid";
+
   // --- SQL-level methods ---
 
-  @SqlUpdate("INSERT INTO subjects (identifier_uuid, category, value) "
-      + "VALUES (:uuid, :category, :value) "
-      + "ON CONFLICT (identifier_uuid) DO UPDATE SET "
+  @SqlUpdate("INSERT INTO subjects (uuid, owner_uuid, category, value) "
+      + "VALUES (:uuid, :ownerUuid, :category, :value) "
+      + "ON CONFLICT (uuid) DO UPDATE SET "
       + "category = EXCLUDED.category, "
       + "value = EXCLUDED.value")
   void upsert(@Bind("uuid") UUID uuid,
+              @Bind("ownerUuid") UUID ownerUuid,
               @Bind("category") String category,
               @Bind("value") String value);
 
-  @SqlQuery("SELECT * FROM subjects WHERE identifier_uuid = :uuid")
-  Optional<Subject> findByIdentifier(@Bind("uuid") UUID uuid);
+  @SqlQuery(SELECT_WITH_OWNER + " WHERE s.owner_uuid = :ownerUuid AND s.uuid = :uuid")
+  Optional<Subject> findByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid,
+                                              @Bind("uuid") UUID uuid);
 
-  @SqlUpdate("DELETE FROM subjects WHERE identifier_uuid = :uuid")
-  int deleteByIdentifier(@Bind("uuid") UUID uuid);
+  @SqlUpdate("DELETE FROM subjects WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
+  int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
-  @SqlQuery("SELECT * FROM subjects WHERE category = :category ORDER BY value")
-  List<Subject> findByCategory(@Bind("category") String category);
+  @SqlQuery(SELECT_WITH_OWNER + " WHERE s.owner_uuid = :ownerUuid AND s.category = :category "
+      + "ORDER BY s.value")
+  List<Subject> findByOwnerAndCategory(@Bind("ownerUuid") UUID ownerUuid,
+                                        @Bind("category") String category);
 
-  @SqlQuery("SELECT * FROM subjects WHERE category = :category AND value = :value")
-  Optional<Subject> findByCategoryAndValue(@Bind("category") String category,
-                                           @Bind("value") String value);
+  @SqlQuery(SELECT_WITH_OWNER + " WHERE s.owner_uuid = :ownerUuid "
+      + "AND s.category = :category AND s.value = :value")
+  Optional<Subject> findByOwnerCategoryAndValue(@Bind("ownerUuid") UUID ownerUuid,
+                                                 @Bind("category") String category,
+                                                 @Bind("value") String value);
 
   // --- Domain-level methods ---
 
   default void store(Subject subject) {
     upsert(subject.identifier().uuid(),
+        subject.owner().identifier().uuid(),
         subject.category().value(),
         subject.value());
   }
 
-  default Optional<Subject> get(Identifier identifier) {
-    return findByIdentifier(identifier.uuid());
+  default Optional<Subject> get(Owner owner, Identifier identifier) {
+    return findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
   }
 
-  default boolean delete(Identifier identifier) {
-    return deleteByIdentifier(identifier.uuid()) > 0;
+  default boolean delete(Owner owner, Identifier identifier) {
+    return deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
   }
 
-  default List<Subject> findByCategory(Category category) {
-    return findByCategory(category.value());
+  default List<Subject> findByCategory(Owner owner, Category category) {
+    return findByOwnerAndCategory(owner.identifier().uuid(), category.value());
   }
 
-  default Optional<Subject> find(Category category, String value) {
-    return findByCategoryAndValue(category.value(), value);
+  default Optional<Subject> find(Owner owner, Category category, String value) {
+    return findByOwnerCategoryAndValue(owner.identifier().uuid(), category.value(), value);
   }
 
   // --- Row mapper ---
@@ -71,10 +83,13 @@ public interface SubjectDao {
   class SubjectRowMapper implements RowMapper<Subject> {
     @Override
     public Subject map(ResultSet rs, StatementContext ctx) throws SQLException {
-      return Subject.builder(
+      Owner owner = Owner.builder(rs.getString("owner_value"))
+          .identifier(new Identifier(rs.getObject("owner_uuid", UUID.class)))
+          .build();
+      return Subject.builder(owner,
               new Category(rs.getString("category")),
               rs.getString("value"))
-          .identifier(new Identifier(rs.getObject("identifier_uuid", UUID.class)))
+          .identifier(new Identifier(rs.getObject("uuid", UUID.class)))
           .build();
     }
   }

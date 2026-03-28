@@ -12,6 +12,10 @@ class Tag {
 class Timestamp {
   timestamp : Instant
 }
+class Owner {
+  value : String
+  identifier : Identifier
+}
 class Subject {
   value : String
   identifier : Identifier
@@ -30,7 +34,10 @@ class Note {
 }
 
 Subject "0..*" -- "1" Category : has
+Subject "0..*" -- "1" Owner : has
+Event "0..*" -- "1" Owner : has
 Event "0..*" -- "1" Subject : has
+Note "0..*" -- "1" Owner : has
 Note "0..*" -left- "1" Subject : has
 Note "0..*" -down- "0..1" Event : has
 @enduml

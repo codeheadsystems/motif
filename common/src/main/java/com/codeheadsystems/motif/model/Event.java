@@ -4,13 +4,15 @@ import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
-public record Event(Subject subject,
+public record Event(Owner owner,
+                    Subject subject,
                     String value,
                     @Nullable Identifier identifier,
                     @Nullable Timestamp timestamp,
                     @Nullable List<Tag> tags) {
 
   public Event {
+    Objects.requireNonNull(owner, "owner cannot be null");
     Objects.requireNonNull(subject, "subject cannot be null");
     value = Objects.requireNonNull(value, "value cannot be null").strip();
     if (value.length() > 256) {
@@ -25,25 +27,27 @@ public record Event(Subject subject,
     return Builder.from(event);
   }
 
-  public static Builder builder(Subject subject, String value) {
-    return new Builder(subject, value);
+  public static Builder builder(Owner owner, Subject subject, String value) {
+    return new Builder(owner, subject, value);
   }
 
   public static class Builder {
+    private final Owner owner;
     private final Subject subject;
     private final String value;
     private Identifier identifier;
     private Timestamp timestamp;
     private List<Tag> tags;
 
-    private Builder(Subject subject, String value) {
+    private Builder(Owner owner, Subject subject, String value) {
+      this.owner = Objects.requireNonNull(owner, "owner cannot be null");
       this.subject = Objects.requireNonNull(subject, "subject cannot be null");
       this.value = Objects.requireNonNull(value, "value cannot be null");
     }
 
     private static Builder from(Event event) {
       Objects.requireNonNull(event, "event cannot be null");
-      Builder builder = new Builder(event.subject(), event.value());
+      Builder builder = new Builder(event.owner(), event.subject(), event.value());
       builder.identifier = event.identifier();
       builder.timestamp = event.timestamp();
       builder.tags = event.tags();
@@ -66,7 +70,7 @@ public record Event(Subject subject,
     }
 
     public Event build() {
-      return new Event(subject, value, identifier, timestamp, tags);
+      return new Event(owner, subject, value, identifier, timestamp, tags);
     }
   }
 }

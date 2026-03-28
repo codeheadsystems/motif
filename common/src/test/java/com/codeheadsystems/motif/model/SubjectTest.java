@@ -7,27 +7,35 @@ import org.junit.jupiter.api.Test;
 
 class SubjectTest {
 
+  private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("topic");
 
   // --- Constructor tests ---
 
   @Test
+  void constructorRejectsNullOwner() {
+    assertThatThrownBy(() -> new Subject(null, CATEGORY, "value"))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("owner cannot be null");
+  }
+
+  @Test
   void constructorRejectsNullCategory() {
-    assertThatThrownBy(() -> new Subject(null, "value"))
+    assertThatThrownBy(() -> new Subject(OWNER, null, "value"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("category cannot be null");
   }
 
   @Test
   void constructorRejectsNullValue() {
-    assertThatThrownBy(() -> new Subject(CATEGORY, null))
+    assertThatThrownBy(() -> new Subject(OWNER, CATEGORY, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("value cannot be null");
   }
 
   @Test
   void constructorRejectsBlankValueAfterStrip() {
-    assertThatThrownBy(() -> new Subject(CATEGORY, "   \t   "))
+    assertThatThrownBy(() -> new Subject(OWNER, CATEGORY, "   \t   "))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("value cannot be empty");
   }
@@ -36,7 +44,7 @@ class SubjectTest {
   void constructorRejectsValueLongerThan128Characters() {
     String tooLong = "x".repeat(129);
 
-    assertThatThrownBy(() -> new Subject(CATEGORY, tooLong))
+    assertThatThrownBy(() -> new Subject(OWNER, CATEGORY, tooLong))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("value cannot be longer than 128 characters");
   }
@@ -45,8 +53,9 @@ class SubjectTest {
   void constructorAcceptsValueAt128Characters() {
     String maxLength = "x".repeat(128);
 
-    Subject subject = new Subject(CATEGORY, maxLength);
+    Subject subject = new Subject(OWNER, CATEGORY, maxLength);
 
+    assertThat(subject.owner()).isEqualTo(OWNER);
     assertThat(subject.category()).isEqualTo(CATEGORY);
     assertThat(subject.value()).isEqualTo(maxLength);
     assertThat(subject.value()).hasSize(128);
@@ -54,15 +63,14 @@ class SubjectTest {
 
   @Test
   void constructorStripsLeadingAndTrailingWhitespace() {
-    Subject subject = new Subject(CATEGORY, "  deploy checklist  ");
+    Subject subject = new Subject(OWNER, CATEGORY, "  deploy checklist  ");
 
-    assertThat(subject.category()).isEqualTo(CATEGORY);
     assertThat(subject.value()).isEqualTo("deploy checklist");
   }
 
   @Test
   void constructorDefaultsIdentifierWhenNull() {
-    Subject subject = new Subject(CATEGORY, "test");
+    Subject subject = new Subject(OWNER, CATEGORY, "test");
 
     assertThat(subject.identifier()).isNotNull();
     assertThat(subject.identifier().uuid()).isNotNull();
@@ -72,7 +80,7 @@ class SubjectTest {
   void constructorPreservesProvidedIdentifier() {
     Identifier id = new Identifier();
 
-    Subject subject = new Subject(CATEGORY, "test", id);
+    Subject subject = new Subject(OWNER, CATEGORY, "test", id);
 
     assertThat(subject.identifier()).isSameAs(id);
   }
@@ -89,7 +97,7 @@ class SubjectTest {
   @Test
   void fromCopiesAllFields() {
     Identifier id = new Identifier();
-    Subject original = new Subject(CATEGORY, "original", id);
+    Subject original = new Subject(OWNER, CATEGORY, "original", id);
 
     Subject copy = Subject.from(original).build();
 
@@ -98,13 +106,14 @@ class SubjectTest {
 
   @Test
   void fromAllowsOverridingIdentifier() {
-    Subject original = new Subject(CATEGORY, "test");
+    Subject original = new Subject(OWNER, CATEGORY, "test");
     Identifier newId = new Identifier();
 
     Subject modified = Subject.from(original)
         .identifier(newId)
         .build();
 
+    assertThat(modified.owner()).isEqualTo(original.owner());
     assertThat(modified.category()).isEqualTo(original.category());
     assertThat(modified.value()).isEqualTo(original.value());
     assertThat(modified.identifier()).isSameAs(newId);
@@ -113,23 +122,31 @@ class SubjectTest {
   // --- Builder tests ---
 
   @Test
+  void builderRejectsNullOwner() {
+    assertThatThrownBy(() -> Subject.builder(null, CATEGORY, "value"))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("owner cannot be null");
+  }
+
+  @Test
   void builderRejectsNullCategory() {
-    assertThatThrownBy(() -> Subject.builder(null, "value"))
+    assertThatThrownBy(() -> Subject.builder(OWNER, null, "value"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("category cannot be null");
   }
 
   @Test
   void builderRejectsNullValue() {
-    assertThatThrownBy(() -> Subject.builder(CATEGORY, null))
+    assertThatThrownBy(() -> Subject.builder(OWNER, CATEGORY, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("value cannot be null");
   }
 
   @Test
   void builderWithDefaults() {
-    Subject subject = Subject.builder(CATEGORY, "test").build();
+    Subject subject = Subject.builder(OWNER, CATEGORY, "test").build();
 
+    assertThat(subject.owner()).isEqualTo(OWNER);
     assertThat(subject.category()).isEqualTo(CATEGORY);
     assertThat(subject.value()).isEqualTo("test");
     assertThat(subject.identifier()).isNotNull();
@@ -139,10 +156,11 @@ class SubjectTest {
   void builderWithAllFields() {
     Identifier id = new Identifier();
 
-    Subject subject = Subject.builder(CATEGORY, "test")
+    Subject subject = Subject.builder(OWNER, CATEGORY, "test")
         .identifier(id)
         .build();
 
+    assertThat(subject.owner()).isEqualTo(OWNER);
     assertThat(subject.category()).isEqualTo(CATEGORY);
     assertThat(subject.value()).isEqualTo("test");
     assertThat(subject.identifier()).isSameAs(id);

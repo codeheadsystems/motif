@@ -9,27 +9,35 @@ import org.junit.jupiter.api.Test;
 
 class EventTest {
 
+  private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(CATEGORY, "test-subject");
+  private static final Subject SUBJECT = new Subject(OWNER, CATEGORY, "test-subject");
 
   // --- Constructor tests ---
 
   @Test
+  void constructorRejectsNullOwner() {
+    assertThatThrownBy(() -> new Event(null, SUBJECT, "value", null, null, null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("owner cannot be null");
+  }
+
+  @Test
   void constructorRejectsNullSubject() {
-    assertThatThrownBy(() -> new Event(null, "value", null, null, null))
+    assertThatThrownBy(() -> new Event(OWNER, null, "value", null, null, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
   void constructorRejectsNullValue() {
-    assertThatThrownBy(() -> new Event(SUBJECT, null, null, null, null))
+    assertThatThrownBy(() -> new Event(OWNER, SUBJECT, null, null, null, null))
         .isInstanceOf(NullPointerException.class);
   }
 
   @Test
   void constructorStripsValue() {
-    Event event = new Event(SUBJECT, "  hello world  ", null, null, null);
+    Event event = new Event(OWNER, SUBJECT, "  hello world  ", null, null, null);
 
     assertThat(event.value()).isEqualTo("hello world");
   }
@@ -38,7 +46,7 @@ class EventTest {
   void constructorRejectsValueLongerThan256Characters() {
     String tooLong = "x".repeat(257);
 
-    assertThatThrownBy(() -> new Event(SUBJECT, tooLong, null, null, null))
+    assertThatThrownBy(() -> new Event(OWNER, SUBJECT, tooLong, null, null, null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("value cannot be longer than 256 characters");
   }
@@ -47,14 +55,14 @@ class EventTest {
   void constructorAcceptsValueAt256Characters() {
     String maxLength = "x".repeat(256);
 
-    Event event = new Event(SUBJECT, maxLength, null, null, null);
+    Event event = new Event(OWNER, SUBJECT, maxLength, null, null, null);
 
     assertThat(event.value()).hasSize(256);
   }
 
   @Test
   void constructorDefaultsIdentifierWhenNull() {
-    Event event = new Event(SUBJECT, "value", null, null, null);
+    Event event = new Event(OWNER, SUBJECT, "value", null, null, null);
 
     assertThat(event.identifier()).isNotNull();
     assertThat(event.identifier().uuid()).isNotNull();
@@ -64,7 +72,7 @@ class EventTest {
   void constructorPreservesProvidedIdentifier() {
     Identifier id = new Identifier();
 
-    Event event = new Event(SUBJECT, "value", id, null, null);
+    Event event = new Event(OWNER, SUBJECT, "value", id, null, null);
 
     assertThat(event.identifier()).isSameAs(id);
   }
@@ -72,7 +80,7 @@ class EventTest {
   @Test
   void constructorDefaultsTimestampWhenNull() {
     Instant before = Instant.now();
-    Event event = new Event(SUBJECT, "value", null, null, null);
+    Event event = new Event(OWNER, SUBJECT, "value", null, null, null);
     Instant after = Instant.now();
 
     assertThat(event.timestamp()).isNotNull();
@@ -83,14 +91,14 @@ class EventTest {
   void constructorPreservesProvidedTimestamp() {
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
 
-    Event event = new Event(SUBJECT, "value", null, ts, null);
+    Event event = new Event(OWNER, SUBJECT, "value", null, ts, null);
 
     assertThat(event.timestamp()).isSameAs(ts);
   }
 
   @Test
   void constructorDefaultsTagsToEmptyListWhenNull() {
-    Event event = new Event(SUBJECT, "value", null, null, null);
+    Event event = new Event(OWNER, SUBJECT, "value", null, null, null);
 
     assertThat(event.tags()).isNotNull().isEmpty();
   }
@@ -99,7 +107,7 @@ class EventTest {
   void constructorPreservesProvidedTags() {
     List<Tag> tags = List.of(new Tag("A"), new Tag("B"));
 
-    Event event = new Event(SUBJECT, "value", null, null, tags);
+    Event event = new Event(OWNER, SUBJECT, "value", null, null, tags);
 
     assertThat(event.tags()).containsExactly(new Tag("A"), new Tag("B"));
   }
@@ -118,7 +126,7 @@ class EventTest {
     Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("A"));
-    Event original = new Event(SUBJECT, "original", id, ts, tags);
+    Event original = new Event(OWNER, SUBJECT, "original", id, ts, tags);
 
     Event copy = Event.from(original).build();
 
@@ -127,13 +135,14 @@ class EventTest {
 
   @Test
   void fromAllowsOverridingFields() {
-    Event original = Event.builder(SUBJECT, "original").build();
+    Event original = Event.builder(OWNER, SUBJECT, "original").build();
 
     List<Tag> newTags = List.of(new Tag("NEW"));
     Event modified = Event.from(original)
         .tags(newTags)
         .build();
 
+    assertThat(modified.owner()).isEqualTo(original.owner());
     assertThat(modified.subject()).isEqualTo(original.subject());
     assertThat(modified.value()).isEqualTo(original.value());
     assertThat(modified.identifier()).isEqualTo(original.identifier());
@@ -144,23 +153,31 @@ class EventTest {
   // --- Builder tests ---
 
   @Test
+  void builderRejectsNullOwner() {
+    assertThatThrownBy(() -> Event.builder(null, SUBJECT, "value"))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("owner cannot be null");
+  }
+
+  @Test
   void builderRejectsNullSubject() {
-    assertThatThrownBy(() -> Event.builder(null, "value"))
+    assertThatThrownBy(() -> Event.builder(OWNER, null, "value"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
   void builderRejectsNullValue() {
-    assertThatThrownBy(() -> Event.builder(SUBJECT, null))
+    assertThatThrownBy(() -> Event.builder(OWNER, SUBJECT, null))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("value cannot be null");
   }
 
   @Test
   void builderWithDefaults() {
-    Event event = Event.builder(SUBJECT, "test").build();
+    Event event = Event.builder(OWNER, SUBJECT, "test").build();
 
+    assertThat(event.owner()).isEqualTo(OWNER);
     assertThat(event.subject()).isEqualTo(SUBJECT);
     assertThat(event.value()).isEqualTo("test");
     assertThat(event.identifier()).isNotNull();
@@ -174,12 +191,13 @@ class EventTest {
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("X"));
 
-    Event event = Event.builder(SUBJECT, "test")
+    Event event = Event.builder(OWNER, SUBJECT, "test")
         .identifier(id)
         .timestamp(ts)
         .tags(tags)
         .build();
 
+    assertThat(event.owner()).isEqualTo(OWNER);
     assertThat(event.subject()).isEqualTo(SUBJECT);
     assertThat(event.value()).isEqualTo("test");
     assertThat(event.identifier()).isSameAs(id);
