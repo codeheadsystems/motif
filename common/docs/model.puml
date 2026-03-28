@@ -1,0 +1,12 @@
+@startuml
+class Event
+class Person
+class Subject
+class Category
+class Note
+class Tag
+class Group
+
+Subject "0..*" -- "1" Category : has
+Pereson "0..*" -- "1" Subject : has
+@enduml
