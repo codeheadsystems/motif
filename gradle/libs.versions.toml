@@ -3,14 +3,39 @@
 
 [versions]
 assertj = "3.27.7"
+dagger = "2.59.2"
+flyway = "12.2.0"
+jdbi3 = "3.52.0"
 jspecify = "1.0.0"
+jsr305 = "3.0.2"
 junit-jupiter = "6.0.3"
+postgresql = "42.7.5"
+testcontainers = "2.0.4"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-core = { module = "org.testcontainers:testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+
+# Dependency Injection
+dagger = { module = "com.google.dagger:dagger", version.ref = "dagger" }
+dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
+
+# db
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+jdbi3-core = { module = "org.jdbi:jdbi3-core", version.ref = "jdbi3" }
+jdbi3-sqlobject = { module = "org.jdbi:jdbi3-sqlobject", version.ref = "jdbi3" }
+jdbi3-postgres = { module = "org.jdbi:jdbi3-postgres", version.ref = "jdbi3" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 
 [bundles]
 core = ["jspecify"]
+di = ["dagger", "dagger-compiler", "jsr305"]
+db = ["flyway-core", "flyway-postgresql", "jdbi3-core", "jdbi3-sqlobject", "jdbi3-postgres", "postgresql"]
 testing = ["assertj", "junit-jupiter"]
