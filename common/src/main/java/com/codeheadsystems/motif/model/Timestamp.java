@@ -3,6 +3,7 @@ package com.codeheadsystems.motif.model;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.Objects;
 
 /**
  * A timestamp backed by an Instant. Supports ISO-8601 export and import.
@@ -25,12 +26,11 @@ public record Timestamp(Instant timestamp) {
    * Creates a Timestamp from an ISO-8601 formatted string.
    *
    * @param iso the ISO-8601 string (e.g. "2026-03-28T12:30:00Z").
-   * @throws DateTimeParseException if the string is not valid ISO-8601.
+   * @throws DateTimeParseException   if the string is not valid ISO-8601.
    * @throws IllegalArgumentException if the string is null.
    */
   public Timestamp(String iso) {
-    this(Instant.parse(
-        java.util.Objects.requireNonNull(iso, "iso string cannot be null")));
+    this(Instant.parse(Objects.requireNonNull(iso, "iso string cannot be null")));
   }
 
   /**

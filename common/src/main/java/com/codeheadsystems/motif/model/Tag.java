@@ -5,6 +5,7 @@ import java.util.Objects;
 /**
  * Tags are strings that are between 1 and 32 chars in size, inclusive.
  * They will be forced to be upper-case.
+ *
  * @param value
  */
 public record Tag(String value) {

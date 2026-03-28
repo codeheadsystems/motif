@@ -79,7 +79,7 @@ public record Note(Subject subject,
     }
 
     public Note build() {
-      return new Note(subject, value, tags, identifier, event,  timestamp);
+      return new Note(subject, value, tags, identifier, event, timestamp);
     }
   }
 }

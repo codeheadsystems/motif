@@ -4,6 +4,7 @@ import java.util.Objects;
 
 /**
  * Categories are strings of size 128 characters or less.
+ *
  * @param value
  */
 public record Category(String value) {

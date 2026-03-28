@@ -7,7 +7,7 @@ import java.util.Objects;
  * 128 chars.
  *
  * @param category The category of the subject.
- * @param value The value of the subject.
+ * @param value    The value of the subject.
  */
 public record Subject(Category category, String value) {
 
