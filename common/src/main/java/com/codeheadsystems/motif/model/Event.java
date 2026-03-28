@@ -12,7 +12,7 @@ public record Event(Subject subject,
 
   public Event {
     Objects.requireNonNull(subject, "subject cannot be null");
-    Objects.requireNonNull(value.strip(), "value cannot be null");
+    value = Objects.requireNonNull(value, "value cannot be null").strip();
     if (value.length() > 256) {
       throw new IllegalArgumentException("value cannot be longer than 256 characters");
     }

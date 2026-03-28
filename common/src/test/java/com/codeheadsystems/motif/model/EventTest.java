@@ -29,6 +29,13 @@ class EventTest {
   }
 
   @Test
+  void constructorStripsValue() {
+    Event event = new Event(SUBJECT, "  hello world  ", null, null, null);
+
+    assertThat(event.value()).isEqualTo("hello world");
+  }
+
+  @Test
   void constructorRejectsValueLongerThan256Characters() {
     String tooLong = "x".repeat(257);
 

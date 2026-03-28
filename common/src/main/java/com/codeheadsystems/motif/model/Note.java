@@ -1,6 +1,5 @@
 package com.codeheadsystems.motif.model;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
@@ -14,7 +13,7 @@ public record Note(Subject subject,
 
   public Note {
     Objects.requireNonNull(subject, "subject cannot be null");
-    value = Objects.requireNonNullElseGet(value.strip(), () -> "");
+    value = Objects.requireNonNullElse(value, "").strip();
     if (value.length() > 4096) {
       throw new IllegalArgumentException("value cannot be longer than 4096 characters");
     }

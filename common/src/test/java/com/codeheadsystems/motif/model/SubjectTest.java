@@ -39,7 +39,7 @@ class SubjectTest {
 
     assertThatThrownBy(() -> new Subject(category, tooLong))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("value cannot be longer than 32 characters");
+        .hasMessage("value cannot be longer than 128 characters");
   }
 
   @Test

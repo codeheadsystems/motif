@@ -23,9 +23,10 @@ class NoteTest {
   }
 
   @Test
-  void constructorRejectsNullValue() {
-    assertThatThrownBy(() -> new Note(SUBJECT, null, null, null, null, null))
-        .isInstanceOf(NullPointerException.class);
+  void constructorDefaultsNullValueToEmpty() {
+    Note note = new Note(SUBJECT, null, null, null, null, null);
+
+    assertThat(note.value()).isEmpty();
   }
 
   @Test
@@ -170,9 +171,10 @@ class NoteTest {
   }
 
   @Test
-  void builderRejectsNullValue() {
-    assertThatThrownBy(() -> Note.builder(SUBJECT).build())
-        .isInstanceOf(NullPointerException.class);
+  void builderDefaultsNullValueToEmpty() {
+    Note note = Note.builder(SUBJECT).build();
+
+    assertThat(note.value()).isEmpty();
   }
 
   @Test

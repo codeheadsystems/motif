@@ -19,7 +19,7 @@ public record Subject(Category category, String value) {
       throw new IllegalArgumentException("value cannot be empty");
     }
     if (value.length() > 128) {
-      throw new IllegalArgumentException("value cannot be longer than 32 characters");
+      throw new IllegalArgumentException("value cannot be longer than 128 characters");
     }
   }
 }

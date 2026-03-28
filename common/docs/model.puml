@@ -1,12 +1,36 @@
 @startuml
-class Event
-class Person
-class Subject
-class Category
-class Note
-class Tag
-class Group
+
+class Identifier {
+  clazz : Class
+  uuid : UUID
+}
+class Category {
+  value : String
+}
+class Tag {
+  value : String
+}
+class Timestamp {
+  timestamp : Instant
+}
+class Subject {
+  value : String
+}
+class Event {
+  value : String
+  tags : List<Tag>
+  identifier : Identifier
+  timestamp : Timestamp
+}
+class Note {
+  value : String
+  tags : List<Tag>
+  identifier : Identifier
+  timestamp : Timestamp
+}
 
 Subject "0..*" -- "1" Category : has
-Pereson "0..*" -- "1" Subject : has
+Event "0..*" -- "1" Subject : has
+Note "0..*" -left- "1" Subject : has
+Note "0..*" -down- "0..1" Event : has
 @enduml
