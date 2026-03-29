@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -110,6 +111,24 @@ class EventTest {
     Event event = new Event(OWNER, SUBJECT, "value", null, null, tags);
 
     assertThat(event.tags()).containsExactly(new Tag("A"), new Tag("B"));
+  }
+
+  @Test
+  void constructorMakesDefensiveCopyOfTags() {
+    ArrayList<Tag> mutableTags = new ArrayList<>(List.of(new Tag("A")));
+
+    Event event = new Event(OWNER, SUBJECT, "value", null, null, mutableTags);
+    mutableTags.add(new Tag("B"));
+
+    assertThat(event.tags()).containsExactly(new Tag("A"));
+  }
+
+  @Test
+  void constructorRejectsOwnerMismatchWithSubject() {
+    Owner differentOwner = new Owner("DIFFERENT");
+    assertThatThrownBy(() -> new Event(differentOwner, SUBJECT, "value", null, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("owner must match subject's owner");
   }
 
   // --- Builder.from tests ---

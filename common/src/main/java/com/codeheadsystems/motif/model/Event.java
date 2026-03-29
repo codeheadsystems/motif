@@ -20,7 +20,10 @@ public record Event(Owner owner,
     }
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
     timestamp = Objects.requireNonNullElse(timestamp, new Timestamp());
-    tags = Objects.requireNonNullElseGet(tags, List::of);
+    tags = tags == null ? List.of() : List.copyOf(tags);
+    if (!owner.equals(subject.owner())) {
+      throw new IllegalArgumentException("owner must match subject's owner");
+    }
   }
 
   public static Builder from(Event event) {

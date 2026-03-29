@@ -62,4 +62,14 @@ class TimestampTest {
 
     assertThat(timestamp.timestamp()).isEqualTo(Instant.parse("2026-03-28T12:30:00Z"));
   }
+
+  @Test
+  void compareToOrdersByInstant() {
+    Timestamp earlier = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
+    Timestamp later = new Timestamp(Instant.parse("2026-06-01T00:00:00Z"));
+
+    assertThat(earlier).isLessThan(later);
+    assertThat(later).isGreaterThan(earlier);
+    assertThat(earlier.compareTo(new Timestamp(earlier.timestamp()))).isZero();
+  }
 }

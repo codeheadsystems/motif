@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -30,10 +31,24 @@ class NoteTest {
   }
 
   @Test
-  void constructorDefaultsNullValueToEmpty() {
-    Note note = new Note(OWNER, SUBJECT, null, null, null, null, null);
+  void constructorRejectsNullValue() {
+    assertThatThrownBy(() -> new Note(OWNER, SUBJECT, null, null, null, null, null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("value cannot be null");
+  }
 
-    assertThat(note.value()).isEmpty();
+  @Test
+  void constructorRejectsEmptyValue() {
+    assertThatThrownBy(() -> new Note(OWNER, SUBJECT, "", null, null, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("value cannot be empty");
+  }
+
+  @Test
+  void constructorRejectsBlankValue() {
+    assertThatThrownBy(() -> new Note(OWNER, SUBJECT, "   ", null, null, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("value cannot be empty");
   }
 
   @Test
@@ -75,6 +90,16 @@ class NoteTest {
     Note note = new Note(OWNER, SUBJECT, "value", tags, null, null, null);
 
     assertThat(note.tags()).containsExactly(new Tag("A"), new Tag("B"));
+  }
+
+  @Test
+  void constructorMakesDefensiveCopyOfTags() {
+    ArrayList<Tag> mutableTags = new ArrayList<>(List.of(new Tag("A")));
+
+    Note note = new Note(OWNER, SUBJECT, "value", mutableTags, null, null, null);
+    mutableTags.add(new Tag("B"));
+
+    assertThat(note.tags()).containsExactly(new Tag("A"));
   }
 
   @Test
@@ -129,6 +154,14 @@ class NoteTest {
     assertThat(note.event()).isSameAs(event);
   }
 
+  @Test
+  void constructorRejectsOwnerMismatchWithSubject() {
+    Owner differentOwner = new Owner("DIFFERENT");
+    assertThatThrownBy(() -> new Note(differentOwner, SUBJECT, "value", null, null, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("owner must match subject's owner");
+  }
+
   // --- Builder.from tests ---
 
   @Test
@@ -153,19 +186,18 @@ class NoteTest {
 
   @Test
   void fromAllowsOverridingFields() {
-    Note original = Note.builder(OWNER, SUBJECT).value("original").build();
+    Note original = Note.builder(OWNER, SUBJECT, "original").build();
 
     Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
     Note modified = Note.from(original)
         .event(event)
-        .value("modified")
         .build();
 
     assertThat(modified.owner()).isEqualTo(original.owner());
     assertThat(modified.subject()).isEqualTo(original.subject());
     assertThat(modified.identifier()).isEqualTo(original.identifier());
     assertThat(modified.timestamp()).isEqualTo(original.timestamp());
-    assertThat(modified.value()).isEqualTo("modified");
+    assertThat(modified.value()).isEqualTo("original");
     assertThat(modified.event()).isSameAs(event);
   }
 
@@ -173,28 +205,28 @@ class NoteTest {
 
   @Test
   void builderRejectsNullOwner() {
-    assertThatThrownBy(() -> Note.builder(null, SUBJECT))
+    assertThatThrownBy(() -> Note.builder(null, SUBJECT, "value"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("owner cannot be null");
   }
 
   @Test
   void builderRejectsNullSubject() {
-    assertThatThrownBy(() -> Note.builder(OWNER, null))
+    assertThatThrownBy(() -> Note.builder(OWNER, null, "value"))
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
-  void builderDefaultsNullValueToEmpty() {
-    Note note = Note.builder(OWNER, SUBJECT).build();
-
-    assertThat(note.value()).isEmpty();
+  void builderRejectsNullValue() {
+    assertThatThrownBy(() -> Note.builder(OWNER, SUBJECT, null))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("value cannot be null");
   }
 
   @Test
   void builderWithDefaults() {
-    Note note = Note.builder(OWNER, SUBJECT).value("note-value").build();
+    Note note = Note.builder(OWNER, SUBJECT, "note-value").build();
 
     assertThat(note.owner()).isEqualTo(OWNER);
     assertThat(note.subject()).isEqualTo(SUBJECT);
@@ -212,8 +244,7 @@ class NoteTest {
     List<Tag> tags = List.of(new Tag("X"));
     Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
 
-    Note note = Note.builder(OWNER, SUBJECT)
-        .value("note-value")
+    Note note = Note.builder(OWNER, SUBJECT, "note-value")
         .tags(tags)
         .identifier(id)
         .event(event)

@@ -12,7 +12,7 @@ import java.util.Objects;
  *
  * @param timestamp The instant.
  */
-public record Timestamp(Instant timestamp) {
+public record Timestamp(Instant timestamp) implements Comparable<Timestamp> {
 
   public Timestamp {
     if (timestamp == null) {
@@ -51,6 +51,11 @@ public record Timestamp(Instant timestamp) {
    */
   public OffsetDateTime toOffsetDateTime() {
     return timestamp.atOffset(ZoneOffset.UTC);
+  }
+
+  @Override
+  public int compareTo(Timestamp other) {
+    return this.timestamp.compareTo(other.timestamp);
   }
 
 }
