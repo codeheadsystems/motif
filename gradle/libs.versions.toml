@@ -9,7 +9,7 @@ jdbi3 = "3.52.0"
 jspecify = "1.0.0"
 jsr305 = "3.0.2"
 junit-jupiter = "6.0.3"
-postgresql = "42.7.7"
+postgresql = "42.7.10"
 testcontainers = "2.0.4"
 
 [libraries]
