@@ -108,7 +108,7 @@ class OwnerTest {
 
   @Test
   void builderWithDefaults() {
-    Owner owner = Owner.builder("test").build();
+    Owner owner = Owner.builder().value("test").build();
 
     assertThat(owner.value()).isEqualTo("TEST");
     assertThat(owner.identifier()).isNotNull();
@@ -118,7 +118,8 @@ class OwnerTest {
   void builderWithAllFields() {
     Identifier id = new Identifier();
 
-    Owner owner = Owner.builder("test")
+    Owner owner = Owner.builder()
+        .value("test")
         .identifier(id)
         .build();
 

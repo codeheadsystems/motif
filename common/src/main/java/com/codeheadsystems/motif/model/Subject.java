@@ -3,19 +3,20 @@ package com.codeheadsystems.motif.model;
 import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
+
 /**
  * Subjects are value objects that live in a category. They are strings less than
  * 128 chars.
  *
- * @param owner      The owner of the subject.
- * @param category   The category of the subject.
- * @param value      The value of the subject.
- * @param identifier The identifier of the subject.
+ * @param ownerIdentifier The identifier of the owner.
+ * @param category        The category of the subject.
+ * @param value           The value of the subject.
+ * @param identifier      The identifier of the subject.
  */
-public record Subject(Owner owner, Category category, String value, @Nullable Identifier identifier) {
+public record Subject(Identifier ownerIdentifier, Category category, String value, @Nullable Identifier identifier) {
 
   public Subject {
-    Objects.requireNonNull(owner, "owner cannot be null");
+    Objects.requireNonNull(ownerIdentifier, "ownerIdentifier cannot be null");
     Objects.requireNonNull(category, "category cannot be null");
     value = Objects.requireNonNull(value, "value cannot be null")
         .strip();
@@ -28,35 +29,54 @@ public record Subject(Owner owner, Category category, String value, @Nullable Id
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
   }
 
-  public Subject(Owner owner, Category category, String value) {
-    this(owner, category, value, null);
+  public Subject(Identifier ownerIdentifier, Category category, String value) {
+    this(ownerIdentifier, category, value, null);
   }
 
   public static Builder from(Subject subject) {
     return Builder.from(subject);
   }
 
-  public static Builder builder(Owner owner, Category category, String value) {
-    return new Builder(owner, category, value);
+  public static Builder builder() {
+    return new Builder();
   }
 
   public static class Builder {
-    private final Owner owner;
-    private final Category category;
-    private final String value;
+    private Identifier ownerIdentifier;
+    private Category category;
+    private String value;
     private Identifier identifier;
 
-    private Builder(Owner owner, Category category, String value) {
-      this.owner = Objects.requireNonNull(owner, "owner cannot be null");
-      this.category = Objects.requireNonNull(category, "category cannot be null");
-      this.value = Objects.requireNonNull(value, "value cannot be null");
+    private Builder() {
     }
 
     private static Builder from(Subject subject) {
       Objects.requireNonNull(subject, "subject cannot be null");
-      Builder builder = new Builder(subject.owner(), subject.category(), subject.value());
+      Builder builder = new Builder();
+      builder.ownerIdentifier = subject.ownerIdentifier();
+      builder.category = subject.category();
+      builder.value = subject.value();
       builder.identifier = subject.identifier();
       return builder;
+    }
+
+    public Builder owner(Owner owner) {
+      return ownerIdentifier(owner.identifier());
+    }
+
+    public Builder ownerIdentifier(Identifier ownerIdentifier) {
+      this.ownerIdentifier = ownerIdentifier;
+      return this;
+    }
+
+    public Builder category(Category category) {
+      this.category = category;
+      return this;
+    }
+
+    public Builder value(String value) {
+      this.value = value;
+      return this;
     }
 
     public Builder identifier(Identifier identifier) {
@@ -65,7 +85,7 @@ public record Subject(Owner owner, Category category, String value, @Nullable Id
     }
 
     public Subject build() {
-      return new Subject(owner, category, value, identifier);
+      return new Subject(ownerIdentifier, category, value, identifier);
     }
   }
 }

@@ -33,23 +33,28 @@ public record Owner(String value, @Nullable Identifier identifier) {
     return Builder.from(owner);
   }
 
-  public static Builder builder(String value) {
-    return new Builder(value);
+  public static Builder builder() {
+    return new Builder();
   }
 
   public static class Builder {
-    private final String value;
+    private String value;
     private Identifier identifier;
 
-    private Builder(String value) {
-      this.value = Objects.requireNonNull(value, "value cannot be null");
+    private Builder() {
     }
 
     private static Builder from(Owner owner) {
       Objects.requireNonNull(owner, "owner cannot be null");
-      Builder builder = new Builder(owner.value());
+      Builder builder = new Builder();
+      builder.value = owner.value();
       builder.identifier = owner.identifier();
       return builder;
+    }
+
+    public Builder value(String value) {
+      this.value = value;
+      return this;
     }
 
     public Builder identifier(Identifier identifier) {

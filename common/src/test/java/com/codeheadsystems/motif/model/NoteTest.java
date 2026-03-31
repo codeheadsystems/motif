@@ -12,7 +12,7 @@ class NoteTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER, CATEGORY, "test-subject");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
 
   // --- Constructor tests ---
 
@@ -147,7 +147,7 @@ class NoteTest {
 
   @Test
   void constructorPreservesProvidedEvent() {
-    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("event-value").build();
 
     Note note = new Note(OWNER, SUBJECT, "value", null, null, event, null);
 
@@ -176,7 +176,7 @@ class NoteTest {
     Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("A"));
-    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("event-value").build();
     Note original = new Note(OWNER, SUBJECT, "original", tags, id, event, ts);
 
     Note copy = Note.from(original).build();
@@ -186,9 +186,9 @@ class NoteTest {
 
   @Test
   void fromAllowsOverridingFields() {
-    Note original = Note.builder(OWNER, SUBJECT, "original").build();
+    Note original = Note.builder().owner(OWNER).subject(SUBJECT).value("original").build();
 
-    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("event-value").build();
     Note modified = Note.from(original)
         .event(event)
         .build();
@@ -205,28 +205,28 @@ class NoteTest {
 
   @Test
   void builderRejectsNullOwner() {
-    assertThatThrownBy(() -> Note.builder(null, SUBJECT, "value"))
+    assertThatThrownBy(() -> Note.builder().subject(SUBJECT).value("value").build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("owner cannot be null");
   }
 
   @Test
   void builderRejectsNullSubject() {
-    assertThatThrownBy(() -> Note.builder(OWNER, null, "value"))
+    assertThatThrownBy(() -> Note.builder().owner(OWNER).value("value").build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
   void builderRejectsNullValue() {
-    assertThatThrownBy(() -> Note.builder(OWNER, SUBJECT, null))
+    assertThatThrownBy(() -> Note.builder().owner(OWNER).subject(SUBJECT).build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("value cannot be null");
   }
 
   @Test
   void builderWithDefaults() {
-    Note note = Note.builder(OWNER, SUBJECT, "note-value").build();
+    Note note = Note.builder().owner(OWNER).subject(SUBJECT).value("note-value").build();
 
     assertThat(note.owner()).isEqualTo(OWNER);
     assertThat(note.subject()).isEqualTo(SUBJECT);
@@ -242,9 +242,10 @@ class NoteTest {
     Identifier id = new Identifier();
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("X"));
-    Event event = Event.builder(OWNER, SUBJECT, "event-value").build();
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("event-value").build();
 
-    Note note = Note.builder(OWNER, SUBJECT, "note-value")
+    Note note = Note.builder()
+        .owner(OWNER).subject(SUBJECT).value("note-value")
         .tags(tags)
         .identifier(id)
         .event(event)

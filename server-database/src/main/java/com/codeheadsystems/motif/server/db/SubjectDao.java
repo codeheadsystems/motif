@@ -19,9 +19,8 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(SubjectDao.SubjectRowMapper.class)
 public interface SubjectDao {
 
-  String SELECT_WITH_OWNER = "SELECT s.uuid, s.owner_uuid, s.category, s.value, "
-      + "o.value AS owner_value "
-      + "FROM subjects s JOIN owners o ON s.owner_uuid = o.uuid";
+  String SELECT = "SELECT s.uuid, s.owner_uuid, s.category, s.value "
+      + "FROM subjects s";
 
   @SqlUpdate("INSERT INTO subjects (uuid, owner_uuid, category, value) "
       + "VALUES (:uuid, :ownerUuid, :category, :value) "
@@ -33,19 +32,19 @@ public interface SubjectDao {
               @Bind("category") String category,
               @Bind("value") String value);
 
-  @SqlQuery(SELECT_WITH_OWNER + " WHERE s.owner_uuid = :ownerUuid AND s.uuid = :uuid")
+  @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid AND s.uuid = :uuid")
   Optional<Subject> findByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid,
                                               @Bind("uuid") UUID uuid);
 
   @SqlUpdate("DELETE FROM subjects WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
-  @SqlQuery(SELECT_WITH_OWNER + " WHERE s.owner_uuid = :ownerUuid AND s.category = :category "
+  @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid AND s.category = :category "
       + "ORDER BY s.value")
   List<Subject> findByOwnerAndCategory(@Bind("ownerUuid") UUID ownerUuid,
                                         @Bind("category") String category);
 
-  @SqlQuery(SELECT_WITH_OWNER + " WHERE s.owner_uuid = :ownerUuid "
+  @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid "
       + "AND s.category = :category AND s.value = :value")
   Optional<Subject> findByOwnerCategoryAndValue(@Bind("ownerUuid") UUID ownerUuid,
                                                  @Bind("category") String category,
@@ -53,7 +52,7 @@ public interface SubjectDao {
 
   default void store(Subject subject) {
     upsert(subject.identifier().uuid(),
-        subject.owner().identifier().uuid(),
+        subject.ownerIdentifier().uuid(),
         subject.category().value(),
         subject.value());
   }
@@ -77,12 +76,11 @@ public interface SubjectDao {
   class SubjectRowMapper implements RowMapper<Subject> {
     @Override
     public Subject map(ResultSet rs, StatementContext ctx) throws SQLException {
-      Owner owner = Owner.builder(rs.getString("owner_value"))
-          .identifier(new Identifier(rs.getObject("owner_uuid", UUID.class)))
-          .build();
-      return Subject.builder(owner,
-              new Category(rs.getString("category")),
-              rs.getString("value"))
+      Identifier ownerIdentifier = new Identifier(rs.getObject("owner_uuid", UUID.class));
+      return Subject.builder()
+          .ownerIdentifier(ownerIdentifier)
+          .category(new Category(rs.getString("category")))
+          .value(rs.getString("value"))
           .identifier(new Identifier(rs.getObject("uuid", UUID.class)))
           .build();
     }

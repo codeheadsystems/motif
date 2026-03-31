@@ -21,7 +21,7 @@ public record Event(Owner owner,
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
     timestamp = Objects.requireNonNullElse(timestamp, new Timestamp());
     tags = tags == null ? List.of() : List.copyOf(tags);
-    if (!owner.equals(subject.owner())) {
+    if (!owner.identifier().equals(subject.ownerIdentifier())) {
       throw new IllegalArgumentException("owner must match subject's owner");
     }
   }
@@ -30,31 +30,46 @@ public record Event(Owner owner,
     return Builder.from(event);
   }
 
-  public static Builder builder(Owner owner, Subject subject, String value) {
-    return new Builder(owner, subject, value);
+  public static Builder builder() {
+    return new Builder();
   }
 
   public static class Builder {
-    private final Owner owner;
-    private final Subject subject;
-    private final String value;
+    private Owner owner;
+    private Subject subject;
+    private String value;
     private Identifier identifier;
     private Timestamp timestamp;
     private List<Tag> tags;
 
-    private Builder(Owner owner, Subject subject, String value) {
-      this.owner = Objects.requireNonNull(owner, "owner cannot be null");
-      this.subject = Objects.requireNonNull(subject, "subject cannot be null");
-      this.value = Objects.requireNonNull(value, "value cannot be null");
+    private Builder() {
     }
 
     private static Builder from(Event event) {
       Objects.requireNonNull(event, "event cannot be null");
-      Builder builder = new Builder(event.owner(), event.subject(), event.value());
+      Builder builder = new Builder();
+      builder.owner = event.owner();
+      builder.subject = event.subject();
+      builder.value = event.value();
       builder.identifier = event.identifier();
       builder.timestamp = event.timestamp();
       builder.tags = event.tags();
       return builder;
+    }
+
+    public Builder owner(Owner owner) {
+      this.owner = owner;
+      return this;
+    }
+
+    public Builder subject(Subject subject) {
+      this.subject = subject;
+      return this;
+    }
+
+    public Builder value(String value) {
+      this.value = value;
+      return this;
     }
 
     public Builder identifier(Identifier identifier) {

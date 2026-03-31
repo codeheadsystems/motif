@@ -61,13 +61,13 @@ class SubjectDaoTest {
 
   @Test
   void storeAndRetrieveSubject() {
-    Subject subject = new Subject(OWNER, CATEGORY, "test-subject");
+    Subject subject = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
 
     subjectDao.store(subject);
     Optional<Subject> result = subjectDao.get(OWNER, subject.identifier());
 
     assertThat(result).isPresent();
-    assertThat(result.get().owner().identifier().uuid()).isEqualTo(OWNER.identifier().uuid());
+    assertThat(result.get().ownerIdentifier().uuid()).isEqualTo(OWNER.identifier().uuid());
     assertThat(result.get().category()).isEqualTo(CATEGORY);
     assertThat(result.get().value()).isEqualTo("test-subject");
     assertThat(result.get().identifier().uuid()).isEqualTo(subject.identifier().uuid());
@@ -80,11 +80,11 @@ class SubjectDaoTest {
 
   @Test
   void storeUpdatesExistingSubject() {
-    Subject original = new Subject(OWNER, CATEGORY, "original");
+    Subject original = new Subject(OWNER.identifier(), CATEGORY, "original");
     subjectDao.store(original);
 
     Category newCategory = new Category("new-category");
-    Subject updated = new Subject(OWNER, newCategory, "updated", original.identifier());
+    Subject updated = new Subject(OWNER.identifier(), newCategory, "updated", original.identifier());
     subjectDao.store(updated);
 
     Optional<Subject> result = subjectDao.get(OWNER, original.identifier());
@@ -97,7 +97,7 @@ class SubjectDaoTest {
 
   @Test
   void deleteReturnsTrueWhenSubjectExists() {
-    Subject subject = new Subject(OWNER, CATEGORY, "to-delete");
+    Subject subject = new Subject(OWNER.identifier(), CATEGORY, "to-delete");
     subjectDao.store(subject);
 
     assertThat(subjectDao.delete(OWNER, subject.identifier())).isTrue();
@@ -115,9 +115,9 @@ class SubjectDaoTest {
   void findByCategoryReturnsMatchingSubjects() {
     Category other = new Category("other-category");
 
-    Subject s1 = new Subject(OWNER, CATEGORY, "alpha");
-    Subject s2 = new Subject(OWNER, CATEGORY, "beta");
-    Subject s3 = new Subject(OWNER, other, "gamma");
+    Subject s1 = new Subject(OWNER.identifier(), CATEGORY, "alpha");
+    Subject s2 = new Subject(OWNER.identifier(), CATEGORY, "beta");
+    Subject s3 = new Subject(OWNER.identifier(), other, "gamma");
 
     subjectDao.store(s1);
     subjectDao.store(s2);
@@ -139,7 +139,7 @@ class SubjectDaoTest {
 
   @Test
   void findByCategoryAndValueReturnsMatch() {
-    Subject subject = new Subject(OWNER, CATEGORY, "unique-value");
+    Subject subject = new Subject(OWNER.identifier(), CATEGORY, "unique-value");
     subjectDao.store(subject);
 
     Optional<Subject> result = subjectDao.find(OWNER, CATEGORY, "unique-value");
@@ -160,8 +160,8 @@ class SubjectDaoTest {
     Owner other = new Owner("OTHER-OWNER");
     ownerDao.store(other);
 
-    Subject s1 = new Subject(OWNER, CATEGORY, "shared-name");
-    Subject s2 = new Subject(other, CATEGORY, "shared-name");
+    Subject s1 = new Subject(OWNER.identifier(), CATEGORY, "shared-name");
+    Subject s2 = new Subject(other.identifier(), CATEGORY, "shared-name");
 
     subjectDao.store(s1);
     subjectDao.store(s2);

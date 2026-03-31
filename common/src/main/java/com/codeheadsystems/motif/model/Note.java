@@ -23,7 +23,7 @@ public record Note(Owner owner,
       throw new IllegalArgumentException("value cannot be longer than 4096 characters");
     }
     tags = tags == null ? List.of() : List.copyOf(tags);
-    if (!owner.equals(subject.owner())) {
+    if (!owner.identifier().equals(subject.ownerIdentifier())) {
       throw new IllegalArgumentException("owner must match subject's owner");
     }
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
@@ -34,33 +34,48 @@ public record Note(Owner owner,
     return Builder.from(note);
   }
 
-  public static Builder builder(Owner owner, Subject subject, String value) {
-    return new Builder(owner, subject, value);
+  public static Builder builder() {
+    return new Builder();
   }
 
   public static class Builder {
-    private final Owner owner;
-    private final Subject subject;
-    private final String value;
+    private Owner owner;
+    private Subject subject;
+    private String value;
     private List<Tag> tags;
     private Identifier identifier;
     private Event event;
     private Timestamp timestamp;
 
-    private Builder(Owner owner, Subject subject, String value) {
-      this.owner = Objects.requireNonNull(owner, "owner cannot be null");
-      this.subject = Objects.requireNonNull(subject, "subject cannot be null");
-      this.value = Objects.requireNonNull(value, "value cannot be null");
+    private Builder() {
     }
 
     private static Builder from(Note note) {
       Objects.requireNonNull(note, "note cannot be null");
-      Builder builder = new Builder(note.owner(), note.subject(), note.value());
+      Builder builder = new Builder();
+      builder.owner = note.owner();
+      builder.subject = note.subject();
+      builder.value = note.value();
       builder.tags = note.tags();
       builder.identifier = note.identifier();
       builder.event = note.event();
       builder.timestamp = note.timestamp();
       return builder;
+    }
+
+    public Builder owner(Owner owner) {
+      this.owner = owner;
+      return this;
+    }
+
+    public Builder subject(Subject subject) {
+      this.subject = subject;
+      return this;
+    }
+
+    public Builder value(String value) {
+      this.value = value;
+      return this;
     }
 
     public Builder tags(List<Tag> tags) {

@@ -104,19 +104,25 @@ public interface EventDao {
   class EventRowMapper implements RowMapper<Event> {
     @Override
     public Event map(ResultSet rs, StatementContext ctx) throws SQLException {
-      Owner owner = Owner.builder(rs.getString("owner_value"))
-          .identifier(new Identifier(rs.getObject("owner_uuid", UUID.class)))
+      Identifier ownerIdentifier = new Identifier(rs.getObject("owner_uuid", UUID.class));
+      Owner owner = Owner.builder()
+          .value(rs.getString("owner_value"))
+          .identifier(ownerIdentifier)
           .build();
-      Subject subject = Subject.builder(owner,
-              new Category(rs.getString("subject_category")),
-              rs.getString("subject_value"))
+      Subject subject = Subject.builder()
+          .ownerIdentifier(ownerIdentifier)
+          .category(new Category(rs.getString("subject_category")))
+          .value(rs.getString("subject_value"))
           .identifier(new Identifier(rs.getObject("subject_uuid", UUID.class)))
           .build();
       Identifier identifier = new Identifier(
           rs.getObject("uuid", UUID.class));
       Timestamp timestamp = new Timestamp(
           rs.getTimestamp("timestamp").toInstant());
-      return Event.builder(owner, subject, rs.getString("value"))
+      return Event.builder()
+          .owner(owner)
+          .subject(subject)
+          .value(rs.getString("value"))
           .identifier(identifier)
           .timestamp(timestamp)
           .build();

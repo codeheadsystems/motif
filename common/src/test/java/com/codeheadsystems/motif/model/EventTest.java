@@ -12,7 +12,7 @@ class EventTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER, CATEGORY, "test-subject");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
 
   // --- Constructor tests ---
 
@@ -154,7 +154,7 @@ class EventTest {
 
   @Test
   void fromAllowsOverridingFields() {
-    Event original = Event.builder(OWNER, SUBJECT, "original").build();
+    Event original = Event.builder().owner(OWNER).subject(SUBJECT).value("original").build();
 
     List<Tag> newTags = List.of(new Tag("NEW"));
     Event modified = Event.from(original)
@@ -173,28 +173,28 @@ class EventTest {
 
   @Test
   void builderRejectsNullOwner() {
-    assertThatThrownBy(() -> Event.builder(null, SUBJECT, "value"))
+    assertThatThrownBy(() -> Event.builder().subject(SUBJECT).value("value").build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("owner cannot be null");
   }
 
   @Test
   void builderRejectsNullSubject() {
-    assertThatThrownBy(() -> Event.builder(OWNER, null, "value"))
+    assertThatThrownBy(() -> Event.builder().owner(OWNER).value("value").build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("subject cannot be null");
   }
 
   @Test
   void builderRejectsNullValue() {
-    assertThatThrownBy(() -> Event.builder(OWNER, SUBJECT, null))
+    assertThatThrownBy(() -> Event.builder().owner(OWNER).subject(SUBJECT).build())
         .isInstanceOf(NullPointerException.class)
         .hasMessage("value cannot be null");
   }
 
   @Test
   void builderWithDefaults() {
-    Event event = Event.builder(OWNER, SUBJECT, "test").build();
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("test").build();
 
     assertThat(event.owner()).isEqualTo(OWNER);
     assertThat(event.subject()).isEqualTo(SUBJECT);
@@ -210,7 +210,7 @@ class EventTest {
     Timestamp ts = new Timestamp(Instant.parse("2026-01-01T00:00:00Z"));
     List<Tag> tags = List.of(new Tag("X"));
 
-    Event event = Event.builder(OWNER, SUBJECT, "test")
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("test")
         .identifier(id)
         .timestamp(ts)
         .tags(tags)

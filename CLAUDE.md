@@ -10,16 +10,17 @@
 
 Records with multiple optional fields use an inner `Builder` class following this pattern:
 
-- **`builder(...)`**: Static factory taking only the required fields. Optional fields have fluent setters on the builder.
+- **`builder()`**: Static factory with no arguments. All fields are set via fluent setters on the builder.
 - **`from(instance)`**: Static method on the record that returns a `Builder` pre-populated with all fields from an existing instance, allowing selective overrides. Delegates to a **private** `Builder.from()` method.
-- **`Builder` constructor is private**. Only `builder()` and `from()` on the record are public entry points.
+- **`Builder` constructor is private and no-arg**. Only `builder()` and `from()` on the record are public entry points.
 - Optional/nullable record parameters are annotated with `@Nullable` from `org.jspecify.annotations`.
 - The canonical constructor handles defaults for nullable fields (e.g. generating an `Identifier`, defaulting a `Timestamp`).
 
 Example usage:
 ```java
 // Create new
-Event event = Event.builder(subject, "value")
+Event event = Event.builder()
+    .owner(owner).subject(subject).value("value")
     .tags(List.of(new Tag("A")))
     .build();
 

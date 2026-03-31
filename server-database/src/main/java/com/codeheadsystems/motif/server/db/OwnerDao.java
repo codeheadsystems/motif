@@ -50,7 +50,8 @@ public interface OwnerDao {
   class OwnerRowMapper implements RowMapper<Owner> {
     @Override
     public Owner map(ResultSet rs, StatementContext ctx) throws SQLException {
-      return Owner.builder(rs.getString("value"))
+      return Owner.builder()
+          .value(rs.getString("value"))
           .identifier(new Identifier(rs.getObject("uuid", UUID.class)))
           .build();
     }
