@@ -2,7 +2,6 @@ package com.codeheadsystems.motif.server.dao;
 
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Identifier;
-import com.codeheadsystems.motif.server.model.Owner;
 import com.codeheadsystems.motif.server.model.Subject;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -32,6 +31,9 @@ public interface SubjectDao {
               @Bind("category") String category,
               @Bind("value") String value);
 
+  @SqlQuery(SELECT + " WHERE s.uuid = :uuid")
+  Optional<Subject> findByIdentifier(@Bind("uuid") UUID uuid);
+
   @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid AND s.uuid = :uuid")
   Optional<Subject> findByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid,
                                               @Bind("uuid") UUID uuid);
@@ -50,28 +52,8 @@ public interface SubjectDao {
                                                  @Bind("category") String category,
                                                  @Bind("value") String value);
 
-  default void store(Subject subject) {
-    upsert(subject.identifier().uuid(),
-        subject.ownerIdentifier().uuid(),
-        subject.category().value(),
-        subject.value());
-  }
-
-  default Optional<Subject> get(Owner owner, Identifier identifier) {
-    return findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
-  }
-
-  default boolean delete(Owner owner, Identifier identifier) {
-    return deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
-  }
-
-  default List<Subject> findByCategory(Owner owner, Category category) {
-    return findByOwnerAndCategory(owner.identifier().uuid(), category.value());
-  }
-
-  default Optional<Subject> find(Owner owner, Category category, String value) {
-    return findByOwnerCategoryAndValue(owner.identifier().uuid(), category.value(), value);
-  }
+  @SqlQuery(SELECT + " WHERE s.value = :value")
+  List<Subject> findByValue(@Bind("value") String value);
 
   class SubjectRowMapper implements RowMapper<Subject> {
     @Override

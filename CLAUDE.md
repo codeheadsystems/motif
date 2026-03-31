@@ -4,7 +4,17 @@
 
 - Build: `./gradlew build`
 - Test all: `./gradlew test`
-- Test single class: `./gradlew :common:test --tests '*ClassName'`
+- Test single class: `./gradlew :server:test --tests '*ClassName'`
+
+## Architecture
+
+Three-layer architecture in the `server` module under `com.codeheadsystems.motif.server`:
+
+- **model**: Immutable Java records (`Owner`, `Subject`, `Event`, `Note`, `Category`, `Tag`, `Identifier`, `Timestamp`)
+- **dao**: JDBI SqlObject interfaces with `@RegisterRowMapper` and default convenience methods
+- **manager**: Business logic layer (`@Singleton`, `@Inject` constructor, Dagger DI)
+
+All entities are multi-tenant, isolated by `Owner`.
 
 ## Record Builder Pattern
 
@@ -33,4 +43,5 @@ Event modified = Event.from(event)
 ## Testing
 
 - Always run the full test suite (`./gradlew test`) after any change to ensure nothing is broken.
-- Tests use JUnit Jupiter and AssertJ.
+- Tests use JUnit Jupiter, AssertJ, and Testcontainers (PostgreSQL 16).
+- DAO and Manager tests use real PostgreSQL via Testcontainers with Flyway migrations.

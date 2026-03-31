@@ -61,7 +61,15 @@ class EventDaoTest {
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
     ownerDao.store(OWNER);
-    subjectDao.store(SUBJECT);
+    storeSubject(SUBJECT);
+  }
+
+  private void storeSubject(Subject subject) {
+    subjectDao.upsert(
+        subject.identifier().uuid(),
+        subject.ownerIdentifier().uuid(),
+        subject.category().value(),
+        subject.value());
   }
 
   // --- store and get ---
@@ -129,7 +137,7 @@ class EventDaoTest {
   @Test
   void findBySubjectReturnsMatchingEvents() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.store(other);
+    storeSubject(other);
 
     Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value( "event 1")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
@@ -155,7 +163,7 @@ class EventDaoTest {
   @Test
   void findBySubjectReturnsEmptyWhenNoMatches() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "nonexistent");
-    subjectDao.store(other);
+    storeSubject(other);
 
     assertThat(eventDao.findBySubject(OWNER, other)).isEmpty();
   }
@@ -211,7 +219,7 @@ class EventDaoTest {
   @Test
   void findBySubjectAndTimeRangeFiltersBoth() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.store(other);
+    storeSubject(other);
 
     Event match = Event.builder().owner(OWNER).subject(SUBJECT).value( "match")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z")))
@@ -274,7 +282,7 @@ class EventDaoTest {
     Owner other = new Owner("OTHER-OWNER");
     ownerDao.store(other);
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
-    subjectDao.store(otherSubject);
+    storeSubject(otherSubject);
 
     Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value( "owner event").build();
     Event e2 = Event.builder().owner(other).subject(otherSubject).value("other event").build();

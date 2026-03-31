@@ -67,11 +67,19 @@ class NoteDaoTest {
     eventDao = jdbi.onDemand(EventDao.class);
     noteDao = jdbi.onDemand(NoteDao.class);
     ownerDao.store(OWNER);
-    subjectDao.store(SUBJECT);
+    storeSubject(SUBJECT);
     event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
     eventDao.store(event);
+  }
+
+  private void storeSubject(Subject subject) {
+    subjectDao.upsert(
+        subject.identifier().uuid(),
+        subject.ownerIdentifier().uuid(),
+        subject.category().value(),
+        subject.value());
   }
 
   // --- store and get ---
@@ -159,7 +167,7 @@ class NoteDaoTest {
   @Test
   void findBySubjectReturnsMatchingNotes() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.store(other);
+    storeSubject(other);
 
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("note 1")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
@@ -185,7 +193,7 @@ class NoteDaoTest {
   @Test
   void findBySubjectReturnsEmptyWhenNoMatches() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "nonexistent");
-    subjectDao.store(other);
+    storeSubject(other);
 
     assertThat(noteDao.findBySubject(OWNER, other)).isEmpty();
   }
@@ -195,7 +203,7 @@ class NoteDaoTest {
   @Test
   void findBySubjectAndTimeRangeFiltersBoth() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.store(other);
+    storeSubject(other);
 
     Note match = Note.builder().owner(OWNER).subject(SUBJECT).value("match")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z")))
@@ -343,7 +351,7 @@ class NoteDaoTest {
     Owner other = new Owner("OTHER-OWNER");
     ownerDao.store(other);
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
-    subjectDao.store(otherSubject);
+    storeSubject(otherSubject);
 
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("owner note").build();
     Note n2 = Note.builder().owner(other).subjectIdentifier(otherSubject.identifier())

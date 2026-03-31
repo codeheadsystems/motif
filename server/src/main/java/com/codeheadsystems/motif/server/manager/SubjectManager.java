@@ -1,0 +1,66 @@
+package com.codeheadsystems.motif.server.manager;
+
+import com.codeheadsystems.motif.server.dao.SubjectDao;
+import com.codeheadsystems.motif.server.model.Category;
+import com.codeheadsystems.motif.server.model.Identifier;
+import com.codeheadsystems.motif.server.model.Owner;
+import com.codeheadsystems.motif.server.model.Subject;
+import java.util.List;
+import java.util.Optional;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+@Singleton
+public class SubjectManager {
+
+  private final SubjectDao subjectDao;
+
+  @Inject
+  public SubjectManager(final SubjectDao subjectDao) {
+    this.subjectDao = subjectDao;
+  }
+
+  public Optional<Subject> getSubject(Identifier identifier) {
+    return subjectDao.findByIdentifier(identifier.uuid());
+  }
+
+  public Optional<Subject> getSubject(Owner owner, Identifier identifier) {
+    return subjectDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
+  }
+
+  public Optional<Subject> getSubject(String subjectValue) {
+    List<Subject> subjects = subjectDao.findByValue(subjectValue);
+    return subjects.isEmpty() ? Optional.empty() : Optional.of(subjects.getFirst());
+  }
+
+  public List<Subject> findByCategory(Owner owner, Category category) {
+    return subjectDao.findByOwnerAndCategory(owner.identifier().uuid(), category.value());
+  }
+
+  public Optional<Subject> find(Owner owner, Category category, String value) {
+    return subjectDao.findByOwnerCategoryAndValue(owner.identifier().uuid(), category.value(), value);
+  }
+
+  public void store(Subject subject) {
+    subjectDao.upsert(
+        subject.identifier().uuid(),
+        subject.ownerIdentifier().uuid(),
+        subject.category().value(),
+        subject.value());
+  }
+
+  public boolean delete(Subject subject) {
+    return subjectDao.deleteByOwnerAndIdentifier(
+        subject.ownerIdentifier().uuid(),
+        subject.identifier().uuid()) > 0;
+  }
+
+  public boolean update(Subject subject) {
+    Optional<Subject> existing = subjectDao.findByIdentifier(subject.identifier().uuid());
+    if (existing.isEmpty()) {
+      return false;
+    }
+    store(subject);
+    return true;
+  }
+}
