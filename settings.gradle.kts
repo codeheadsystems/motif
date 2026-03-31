@@ -12,4 +12,4 @@ plugins {
 
 rootProject.name = "motif"
 include("common")
-include("server-database")
+include("server")
