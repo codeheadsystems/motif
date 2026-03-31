@@ -1,0 +1,134 @@
+package com.codeheadsystems.motif.server.dao;
+
+import com.codeheadsystems.motif.server.model.Identifier;
+import com.codeheadsystems.motif.server.model.Note;
+import com.codeheadsystems.motif.server.model.Owner;
+import com.codeheadsystems.motif.server.model.Subject;
+import com.codeheadsystems.motif.server.model.Timestamp;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.jdbi.v3.core.mapper.RowMapper;
+import org.jdbi.v3.core.statement.StatementContext;
+import org.jdbi.v3.sqlobject.config.RegisterRowMapper;
+import org.jdbi.v3.sqlobject.customizer.Bind;
+import org.jdbi.v3.sqlobject.statement.SqlQuery;
+import org.jdbi.v3.sqlobject.statement.SqlUpdate;
+
+@RegisterRowMapper(NoteDao.NoteRowMapper.class)
+public interface NoteDao {
+
+  String SELECT = "SELECT n.uuid, n.owner_uuid, n.subject_uuid, n.event_uuid, "
+      + "n.value, n.timestamp "
+      + "FROM notes n";
+
+  @SqlUpdate("INSERT INTO notes (uuid, owner_uuid, subject_uuid, event_uuid, value, timestamp) "
+      + "VALUES (:uuid, :ownerUuid, :subjectUuid, CAST(:eventUuid AS UUID), :value, :timestamp) "
+      + "ON CONFLICT (uuid) DO UPDATE SET "
+      + "subject_uuid = EXCLUDED.subject_uuid, "
+      + "event_uuid = EXCLUDED.event_uuid, "
+      + "value = EXCLUDED.value, "
+      + "timestamp = EXCLUDED.timestamp")
+  void upsert(@Bind("uuid") UUID uuid,
+              @Bind("ownerUuid") UUID ownerUuid,
+              @Bind("subjectUuid") UUID subjectUuid,
+              @Bind("eventUuid") UUID eventUuid,
+              @Bind("value") String value,
+              @Bind("timestamp") OffsetDateTime timestamp);
+
+  @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid AND n.uuid = :uuid")
+  Optional<Note> findByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid,
+                                           @Bind("uuid") UUID uuid);
+
+  @SqlUpdate("DELETE FROM notes WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
+  int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
+
+  @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
+      + "AND n.subject_uuid = :subjectUuid ORDER BY n.timestamp")
+  List<Note> findByOwnerAndSubject(@Bind("ownerUuid") UUID ownerUuid,
+                                    @Bind("subjectUuid") UUID subjectUuid);
+
+  @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
+      + "AND n.subject_uuid = :subjectUuid "
+      + "AND n.timestamp >= :from AND n.timestamp <= :to ORDER BY n.timestamp")
+  List<Note> findByOwnerSubjectAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
+                                             @Bind("subjectUuid") UUID subjectUuid,
+                                             @Bind("from") OffsetDateTime from,
+                                             @Bind("to") OffsetDateTime to);
+
+  @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
+      + "AND n.event_uuid = :eventUuid ORDER BY n.timestamp")
+  List<Note> findByOwnerAndEvent(@Bind("ownerUuid") UUID ownerUuid,
+                                  @Bind("eventUuid") UUID eventUuid);
+
+  @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
+      + "AND n.event_uuid = :eventUuid "
+      + "AND n.timestamp >= :from AND n.timestamp <= :to ORDER BY n.timestamp")
+  List<Note> findByOwnerEventAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
+                                           @Bind("eventUuid") UUID eventUuid,
+                                           @Bind("from") OffsetDateTime from,
+                                           @Bind("to") OffsetDateTime to);
+
+  default void store(Note note) {
+    upsert(note.identifier().uuid(),
+        note.ownerIdentifier().uuid(),
+        note.subjectIdentifier().uuid(),
+        note.eventIdentifier() != null ? note.eventIdentifier().uuid() : null,
+        note.value(),
+        note.timestamp().toOffsetDateTime());
+  }
+
+  default Optional<Note> get(Owner owner, Identifier identifier) {
+    return findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
+  }
+
+  default boolean delete(Owner owner, Identifier identifier) {
+    return deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
+  }
+
+  default List<Note> findBySubject(Owner owner, Subject subject) {
+    return findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid());
+  }
+
+  default List<Note> findBySubjectAndTimeRange(Owner owner, Subject subject,
+                                                Timestamp from, Timestamp to) {
+    return findByOwnerSubjectAndTimeRange(owner.identifier().uuid(),
+        subject.identifier().uuid(),
+        from.toOffsetDateTime(), to.toOffsetDateTime());
+  }
+
+  default List<Note> findByEvent(Owner owner, Identifier eventIdentifier) {
+    return findByOwnerAndEvent(owner.identifier().uuid(), eventIdentifier.uuid());
+  }
+
+  default List<Note> findByEventAndTimeRange(Owner owner, Identifier eventIdentifier,
+                                              Timestamp from, Timestamp to) {
+    return findByOwnerEventAndTimeRange(owner.identifier().uuid(),
+        eventIdentifier.uuid(),
+        from.toOffsetDateTime(), to.toOffsetDateTime());
+  }
+
+  class NoteRowMapper implements RowMapper<Note> {
+    @Override
+    public Note map(ResultSet rs, StatementContext ctx) throws SQLException {
+      Identifier ownerIdentifier = new Identifier(rs.getObject("owner_uuid", UUID.class));
+      Identifier subjectIdentifier = new Identifier(rs.getObject("subject_uuid", UUID.class));
+      UUID eventUuid = rs.getObject("event_uuid", UUID.class);
+      Identifier eventIdentifier = eventUuid != null ? new Identifier(eventUuid) : null;
+      Identifier identifier = new Identifier(rs.getObject("uuid", UUID.class));
+      Timestamp timestamp = new Timestamp(rs.getTimestamp("timestamp").toInstant());
+      return Note.builder()
+          .ownerIdentifier(ownerIdentifier)
+          .subjectIdentifier(subjectIdentifier)
+          .eventIdentifier(eventIdentifier)
+          .value(rs.getString("value"))
+          .identifier(identifier)
+          .timestamp(timestamp)
+          .build();
+    }
+  }
+
+}
