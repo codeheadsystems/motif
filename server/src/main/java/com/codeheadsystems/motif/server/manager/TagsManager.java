@@ -1,0 +1,43 @@
+package com.codeheadsystems.motif.server.manager;
+
+import com.codeheadsystems.motif.server.dao.TagsDao;
+import com.codeheadsystems.motif.server.model.Identifier;
+import com.codeheadsystems.motif.server.model.Tag;
+import java.util.List;
+import java.util.UUID;
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+@Singleton
+public class TagsManager {
+
+  private final TagsDao tagsDao;
+
+  @Inject
+  public TagsManager(final TagsDao tagsDao) {
+    this.tagsDao = tagsDao;
+  }
+
+  public List<Tag> tagsFor(Identifier identifier) {
+    return tagsDao.tagValuesFor(identifier.uuid())
+        .stream()
+        .map(Tag::new)
+        .toList();
+  }
+
+  public void addTags(Identifier identifier, List<Tag> tags) {
+    UUID uuid = identifier.uuid();
+    for (Tag tag : tags) {
+      tagsDao.insertTag(uuid, tag.value());
+    }
+  }
+
+  public boolean removeTags(Identifier identifier, List<Tag> tags) {
+    UUID uuid = identifier.uuid();
+    int removed = 0;
+    for (Tag tag : tags) {
+      removed += tagsDao.deleteTag(uuid, tag.value());
+    }
+    return removed > 0;
+  }
+}

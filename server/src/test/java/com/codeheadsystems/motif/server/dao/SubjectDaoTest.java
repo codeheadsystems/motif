@@ -54,7 +54,7 @@ class SubjectDaoTest {
     });
     ownerDao = jdbi.onDemand(OwnerDao.class);
     subjectDao = jdbi.onDemand(SubjectDao.class);
-    ownerDao.store(OWNER);
+    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
   }
 
   private void storeSubject(Subject subject) {
@@ -205,7 +205,7 @@ class SubjectDaoTest {
   @Test
   void subjectsAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.store(other);
+    ownerDao.upsert(other.identifier().uuid(), other.value());
 
     Subject s1 = new Subject(OWNER.identifier(), CATEGORY, "shared-name");
     Subject s2 = new Subject(other.identifier(), CATEGORY, "shared-name");

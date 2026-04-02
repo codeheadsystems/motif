@@ -56,7 +56,7 @@ class SubjectManagerIntegrationTest {
     });
     ownerDao = jdbi.onDemand(OwnerDao.class);
     SubjectDao subjectDao = jdbi.onDemand(SubjectDao.class);
-    ownerDao.store(OWNER);
+    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
     subjectManager = new SubjectManager(subjectDao);
   }
 
@@ -108,7 +108,7 @@ class SubjectManagerIntegrationTest {
   @Test
   void getSubjectByOwnerAndIdentifierReturnsEmptyForWrongOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.store(other);
+    ownerDao.upsert(other.identifier().uuid(), other.value());
 
     Subject subject = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
     subjectManager.store(subject);

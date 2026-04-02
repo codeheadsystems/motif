@@ -1,7 +1,8 @@
-package com.codeheadsystems.motif.server.dao;
+package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.codeheadsystems.motif.server.dao.OwnerDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
 import java.util.Optional;
@@ -17,13 +18,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers
-class OwnerDaoTest {
+class OwnerManagerIntegrationTest {
 
   @Container
   static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
 
   private static Jdbi jdbi;
-  private OwnerDao dao;
+  private OwnerManager ownerManager;
 
   @BeforeAll
   static void setupJdbi() {
@@ -45,15 +46,16 @@ class OwnerDaoTest {
       handle.execute("DELETE FROM subjects");
       handle.execute("DELETE FROM owners");
     });
-    dao = jdbi.onDemand(OwnerDao.class);
+    OwnerDao ownerDao = jdbi.onDemand(OwnerDao.class);
+    ownerManager = new OwnerManager(ownerDao);
   }
 
   @Test
-  void upsertAndFindByIdentifier() {
+  void storeAndGetOwner() {
     Owner owner = new Owner("TEST-OWNER");
-    dao.upsert(owner.identifier().uuid(), owner.value());
+    ownerManager.store(owner);
 
-    Optional<Owner> result = dao.findByIdentifier(owner.identifier().uuid());
+    Optional<Owner> result = ownerManager.get(owner.identifier());
 
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("TEST-OWNER");
@@ -61,43 +63,43 @@ class OwnerDaoTest {
   }
 
   @Test
-  void findByIdentifierReturnsEmptyWhenNotFound() {
-    assertThat(dao.findByIdentifier(new Identifier().uuid())).isEmpty();
+  void getReturnsEmptyWhenNotFound() {
+    assertThat(ownerManager.get(new Identifier())).isEmpty();
   }
 
   @Test
-  void upsertUpdatesExistingOwner() {
+  void storeUpdatesExistingOwner() {
     Owner original = new Owner("ORIGINAL");
-    dao.upsert(original.identifier().uuid(), original.value());
+    ownerManager.store(original);
 
     Owner updated = new Owner("UPDATED", original.identifier());
-    dao.upsert(updated.identifier().uuid(), updated.value());
+    ownerManager.store(updated);
 
-    Optional<Owner> result = dao.findByIdentifier(original.identifier().uuid());
+    Optional<Owner> result = ownerManager.get(original.identifier());
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("UPDATED");
   }
 
   @Test
-  void deleteReturnsOneWhenOwnerExists() {
+  void deleteExistingOwner() {
     Owner owner = new Owner("TO-DELETE");
-    dao.upsert(owner.identifier().uuid(), owner.value());
+    ownerManager.store(owner);
 
-    assertThat(dao.deleteByIdentifier(owner.identifier().uuid())).isEqualTo(1);
-    assertThat(dao.findByIdentifier(owner.identifier().uuid())).isEmpty();
+    assertThat(ownerManager.delete(owner.identifier())).isTrue();
+    assertThat(ownerManager.get(owner.identifier())).isEmpty();
   }
 
   @Test
-  void deleteReturnsZeroWhenOwnerDoesNotExist() {
-    assertThat(dao.deleteByIdentifier(new Identifier().uuid())).isEqualTo(0);
+  void deleteReturnsFalseWhenOwnerDoesNotExist() {
+    assertThat(ownerManager.delete(new Identifier())).isFalse();
   }
 
   @Test
-  void findByValueReturnsMatch() {
+  void findByValue() {
     Owner owner = new Owner("FINDABLE");
-    dao.upsert(owner.identifier().uuid(), owner.value());
+    ownerManager.store(owner);
 
-    Optional<Owner> result = dao.findByValue("FINDABLE");
+    Optional<Owner> result = ownerManager.find("findable");
 
     assertThat(result).isPresent();
     assertThat(result.get().identifier().uuid()).isEqualTo(owner.identifier().uuid());
@@ -105,6 +107,6 @@ class OwnerDaoTest {
 
   @Test
   void findByValueReturnsEmptyWhenNotFound() {
-    assertThat(dao.findByValue("NONEXISTENT")).isEmpty();
+    assertThat(ownerManager.find("NONEXISTENT")).isEmpty();
   }
 }

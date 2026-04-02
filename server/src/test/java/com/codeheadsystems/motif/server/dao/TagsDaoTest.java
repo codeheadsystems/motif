@@ -3,8 +3,7 @@ package com.codeheadsystems.motif.server.dao;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codeheadsystems.motif.server.model.Identifier;
-import com.codeheadsystems.motif.server.model.Tag;
-import java.util.List;
+import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
@@ -12,9 +11,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers
 class TagsDaoTest {
@@ -25,7 +24,7 @@ class TagsDaoTest {
   private static Jdbi jdbi;
 
   private TagsDao dao;
-  private Identifier identifier;
+  private UUID uuid;
 
   @BeforeAll
   static void setupJdbi() {
@@ -45,80 +44,76 @@ class TagsDaoTest {
 
   @BeforeEach
   void setUp() {
-    identifier = new Identifier();
+    uuid = new Identifier().uuid();
     jdbi.useHandle(handle -> handle.execute("DELETE FROM tags"));
     dao = jdbi.onDemand(TagsDao.class);
   }
 
   @Test
-  void tagsForReturnsEmptyListWhenNoTags() {
-    List<Tag> result = dao.tagsFor(identifier);
-
-    assertThat(result).isEmpty();
+  void tagValuesForReturnsEmptyListWhenNoTags() {
+    assertThat(dao.tagValuesFor(uuid)).isEmpty();
   }
 
   @Test
-  void addTagsThenRetrieve() {
-    List<Tag> tags = List.of(new Tag("ALPHA"), new Tag("BETA"));
+  void insertTagAndRetrieve() {
+    dao.insertTag(uuid, "ALPHA");
+    dao.insertTag(uuid, "BETA");
 
-    boolean added = dao.addTags(identifier, tags);
-
-    assertThat(added).isTrue();
-    assertThat(dao.tagsFor(identifier))
-        .containsExactlyInAnyOrder(new Tag("ALPHA"), new Tag("BETA"));
+    assertThat(dao.tagValuesFor(uuid))
+        .containsExactlyInAnyOrder("ALPHA", "BETA");
   }
 
   @Test
-  void addTagsIsIdempotent() {
-    Tag tag = new Tag("DUPLICATE");
-    dao.addTags(identifier, List.of(tag));
-    dao.addTags(identifier, List.of(tag));
+  void insertTagIsIdempotent() {
+    dao.insertTag(uuid, "DUPLICATE");
+    dao.insertTag(uuid, "DUPLICATE");
 
-    assertThat(dao.tagsFor(identifier)).containsExactly(new Tag("DUPLICATE"));
+    assertThat(dao.tagValuesFor(uuid)).containsExactly("DUPLICATE");
   }
 
   @Test
-  void removeTagsReturnsTrueWhenTagsRemoved() {
-    dao.addTags(identifier, List.of(new Tag("A"), new Tag("B"), new Tag("C")));
+  void deleteTagReturnsOneWhenTagExists() {
+    dao.insertTag(uuid, "A");
+    dao.insertTag(uuid, "B");
+    dao.insertTag(uuid, "C");
 
-    boolean removed = dao.removeTags(identifier, List.of(new Tag("A"), new Tag("C")));
-
-    assertThat(removed).isTrue();
-    assertThat(dao.tagsFor(identifier)).containsExactly(new Tag("B"));
+    assertThat(dao.deleteTag(uuid, "A")).isEqualTo(1);
+    assertThat(dao.deleteTag(uuid, "C")).isEqualTo(1);
+    assertThat(dao.tagValuesFor(uuid)).containsExactly("B");
   }
 
   @Test
-  void removeTagsReturnsFalseWhenNoTagsRemoved() {
-    boolean removed = dao.removeTags(identifier, List.of(new Tag("NONEXISTENT")));
-
-    assertThat(removed).isFalse();
+  void deleteTagReturnsZeroWhenTagDoesNotExist() {
+    assertThat(dao.deleteTag(uuid, "NONEXISTENT")).isEqualTo(0);
   }
 
   @Test
-  void tagsAreIsolatedByIdentifier() {
-    Identifier id1 = new Identifier();
-    Identifier id2 = new Identifier();
+  void tagsAreIsolatedByUuid() {
+    UUID uuid1 = new Identifier().uuid();
+    UUID uuid2 = new Identifier().uuid();
 
-    dao.addTags(id1, List.of(new Tag("SHARED"), new Tag("ONLY1")));
-    dao.addTags(id2, List.of(new Tag("SHARED"), new Tag("ONLY2")));
+    dao.insertTag(uuid1, "SHARED");
+    dao.insertTag(uuid1, "ONLY1");
+    dao.insertTag(uuid2, "SHARED");
+    dao.insertTag(uuid2, "ONLY2");
 
-    assertThat(dao.tagsFor(id1))
-        .containsExactlyInAnyOrder(new Tag("SHARED"), new Tag("ONLY1"));
-    assertThat(dao.tagsFor(id2))
-        .containsExactlyInAnyOrder(new Tag("SHARED"), new Tag("ONLY2"));
+    assertThat(dao.tagValuesFor(uuid1))
+        .containsExactlyInAnyOrder("SHARED", "ONLY1");
+    assertThat(dao.tagValuesFor(uuid2))
+        .containsExactlyInAnyOrder("SHARED", "ONLY2");
   }
 
   @Test
-  void removeTagsDoesNotAffectOtherIdentifiers() {
-    Identifier id1 = new Identifier();
-    Identifier id2 = new Identifier();
+  void deleteTagDoesNotAffectOtherUuids() {
+    UUID uuid1 = new Identifier().uuid();
+    UUID uuid2 = new Identifier().uuid();
 
-    dao.addTags(id1, List.of(new Tag("TAG")));
-    dao.addTags(id2, List.of(new Tag("TAG")));
+    dao.insertTag(uuid1, "TAG");
+    dao.insertTag(uuid2, "TAG");
 
-    dao.removeTags(id1, List.of(new Tag("TAG")));
+    dao.deleteTag(uuid1, "TAG");
 
-    assertThat(dao.tagsFor(id1)).isEmpty();
-    assertThat(dao.tagsFor(id2)).containsExactly(new Tag("TAG"));
+    assertThat(dao.tagValuesFor(uuid1)).isEmpty();
+    assertThat(dao.tagValuesFor(uuid2)).containsExactly("TAG");
   }
 }

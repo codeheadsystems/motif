@@ -2,8 +2,6 @@ package com.codeheadsystems.motif.server.dao;
 
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Note;
-import com.codeheadsystems.motif.server.model.Owner;
-import com.codeheadsystems.motif.server.model.Subject;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -71,45 +69,6 @@ public interface NoteDao {
                                            @Bind("eventUuid") UUID eventUuid,
                                            @Bind("from") OffsetDateTime from,
                                            @Bind("to") OffsetDateTime to);
-
-  default void store(Note note) {
-    upsert(note.identifier().uuid(),
-        note.ownerIdentifier().uuid(),
-        note.subjectIdentifier().uuid(),
-        note.eventIdentifier() != null ? note.eventIdentifier().uuid() : null,
-        note.value(),
-        note.timestamp().toOffsetDateTime());
-  }
-
-  default Optional<Note> get(Owner owner, Identifier identifier) {
-    return findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
-  }
-
-  default boolean delete(Owner owner, Identifier identifier) {
-    return deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
-  }
-
-  default List<Note> findBySubject(Owner owner, Subject subject) {
-    return findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid());
-  }
-
-  default List<Note> findBySubjectAndTimeRange(Owner owner, Subject subject,
-                                                Timestamp from, Timestamp to) {
-    return findByOwnerSubjectAndTimeRange(owner.identifier().uuid(),
-        subject.identifier().uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime());
-  }
-
-  default List<Note> findByEvent(Owner owner, Identifier eventIdentifier) {
-    return findByOwnerAndEvent(owner.identifier().uuid(), eventIdentifier.uuid());
-  }
-
-  default List<Note> findByEventAndTimeRange(Owner owner, Identifier eventIdentifier,
-                                              Timestamp from, Timestamp to) {
-    return findByOwnerEventAndTimeRange(owner.identifier().uuid(),
-        eventIdentifier.uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime());
-  }
 
   class NoteRowMapper implements RowMapper<Note> {
     @Override

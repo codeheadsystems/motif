@@ -60,8 +60,12 @@ class EventDaoTest {
     ownerDao = jdbi.onDemand(OwnerDao.class);
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
-    ownerDao.store(OWNER);
+    storeOwner(OWNER);
     storeSubject(SUBJECT);
+  }
+
+  private void storeOwner(Owner owner) {
+    ownerDao.upsert(owner.identifier().uuid(), owner.value());
   }
 
   private void storeSubject(Subject subject) {
@@ -305,7 +309,7 @@ class EventDaoTest {
   @Test
   void eventsAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.store(other);
+    storeOwner(other);
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
     storeSubject(otherSubject);
 

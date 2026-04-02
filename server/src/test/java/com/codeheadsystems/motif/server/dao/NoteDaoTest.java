@@ -66,7 +66,7 @@ class NoteDaoTest {
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
     noteDao = jdbi.onDemand(NoteDao.class);
-    ownerDao.store(OWNER);
+    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
     storeSubject(SUBJECT);
     event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
@@ -91,18 +91,29 @@ class NoteDaoTest {
         event.timestamp().toOffsetDateTime());
   }
 
-  // --- store and get ---
+  private void storeNote(Note note) {
+    noteDao.upsert(
+        note.identifier().uuid(),
+        note.ownerIdentifier().uuid(),
+        note.subjectIdentifier().uuid(),
+        note.eventIdentifier() != null ? note.eventIdentifier().uuid() : null,
+        note.value(),
+        note.timestamp().toOffsetDateTime());
+  }
+
+  // --- upsert and find ---
 
   @Test
-  void storeAndRetrieveNote() {
+  void upsertAndFindByOwnerAndIdentifier() {
     Note note = Note.builder()
         .owner(OWNER).subject(SUBJECT).value("a note")
         .event(event)
         .timestamp(new Timestamp(Instant.parse("2026-03-28T11:00:00Z")))
         .build();
 
-    noteDao.store(note);
-    Optional<Note> result = noteDao.get(OWNER, note.identifier());
+    storeNote(note);
+    Optional<Note> result = noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), note.identifier().uuid());
 
     assertThat(result).isPresent();
     assertThat(result.get().ownerIdentifier().uuid()).isEqualTo(OWNER.identifier().uuid());
@@ -114,14 +125,15 @@ class NoteDaoTest {
   }
 
   @Test
-  void storeAndRetrieveNoteWithoutEvent() {
+  void upsertAndFindNoteWithoutEvent() {
     Note note = Note.builder()
         .owner(OWNER).subject(SUBJECT).value("no event note")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T11:00:00Z")))
         .build();
 
-    noteDao.store(note);
-    Optional<Note> result = noteDao.get(OWNER, note.identifier());
+    storeNote(note);
+    Optional<Note> result = noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), note.identifier().uuid());
 
     assertThat(result).isPresent();
     assertThat(result.get().eventIdentifier()).isNull();
@@ -129,25 +141,27 @@ class NoteDaoTest {
   }
 
   @Test
-  void getReturnsEmptyWhenNotFound() {
-    assertThat(noteDao.get(OWNER, new Identifier())).isEmpty();
+  void findByOwnerAndIdentifierReturnsEmptyWhenNotFound() {
+    assertThat(noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), new Identifier().uuid())).isEmpty();
   }
 
   @Test
-  void storeUpdatesExistingNote() {
+  void upsertUpdatesExistingNote() {
     Note original = Note.builder()
         .owner(OWNER).subject(SUBJECT).value("original")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T11:00:00Z")))
         .build();
-    noteDao.store(original);
+    storeNote(original);
 
     Note updated = Note.from(original)
         .value("updated")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z")))
         .build();
-    noteDao.store(updated);
+    storeNote(updated);
 
-    Optional<Note> result = noteDao.get(OWNER, original.identifier());
+    Optional<Note> result = noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), original.identifier().uuid());
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("updated");
     assertThat(result.get().timestamp().timestamp())
@@ -157,24 +171,28 @@ class NoteDaoTest {
   // --- delete ---
 
   @Test
-  void deleteReturnsTrueWhenNoteExists() {
+  void deleteReturnsOneWhenNoteExists() {
     Note note = Note.builder()
         .owner(OWNER).subject(SUBJECT).value("to delete").build();
-    noteDao.store(note);
+    storeNote(note);
 
-    assertThat(noteDao.delete(OWNER, note.identifier())).isTrue();
-    assertThat(noteDao.get(OWNER, note.identifier())).isEmpty();
+    int deleted = noteDao.deleteByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), note.identifier().uuid());
+    assertThat(deleted).isEqualTo(1);
+    assertThat(noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), note.identifier().uuid())).isEmpty();
   }
 
   @Test
-  void deleteReturnsFalseWhenNoteDoesNotExist() {
-    assertThat(noteDao.delete(OWNER, new Identifier())).isFalse();
+  void deleteReturnsZeroWhenNoteDoesNotExist() {
+    assertThat(noteDao.deleteByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), new Identifier().uuid())).isEqualTo(0);
   }
 
-  // --- findBySubject ---
+  // --- findByOwnerAndSubject ---
 
   @Test
-  void findBySubjectReturnsMatchingNotes() {
+  void findByOwnerAndSubjectReturnsMatchingNotes() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
     storeSubject(other);
 
@@ -188,11 +206,12 @@ class NoteDaoTest {
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:30:00Z")))
         .build();
 
-    noteDao.store(n1);
-    noteDao.store(n2);
-    noteDao.store(n3);
+    storeNote(n1);
+    storeNote(n2);
+    storeNote(n3);
 
-    List<Note> results = noteDao.findBySubject(OWNER, SUBJECT);
+    List<Note> results = noteDao.findByOwnerAndSubject(
+        OWNER.identifier().uuid(), SUBJECT.identifier().uuid());
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Note::value)
@@ -200,17 +219,18 @@ class NoteDaoTest {
   }
 
   @Test
-  void findBySubjectReturnsEmptyWhenNoMatches() {
+  void findByOwnerAndSubjectReturnsEmptyWhenNoMatches() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "nonexistent");
     storeSubject(other);
 
-    assertThat(noteDao.findBySubject(OWNER, other)).isEmpty();
+    assertThat(noteDao.findByOwnerAndSubject(
+        OWNER.identifier().uuid(), other.identifier().uuid())).isEmpty();
   }
 
-  // --- findBySubjectAndTimeRange ---
+  // --- findByOwnerSubjectAndTimeRange ---
 
   @Test
-  void findBySubjectAndTimeRangeFiltersBoth() {
+  void findByOwnerSubjectAndTimeRangeFiltersBoth() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
     storeSubject(other);
 
@@ -225,20 +245,22 @@ class NoteDaoTest {
         .timestamp(new Timestamp(Instant.parse("2026-03-29T12:00:00Z")))
         .build();
 
-    noteDao.store(match);
-    noteDao.store(wrongSubject);
-    noteDao.store(wrongTime);
+    storeNote(match);
+    storeNote(wrongSubject);
+    storeNote(wrongTime);
 
-    List<Note> results = noteDao.findBySubjectAndTimeRange(OWNER, SUBJECT,
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Note> results = noteDao.findByOwnerSubjectAndTimeRange(
+        OWNER.identifier().uuid(),
+        SUBJECT.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("match");
   }
 
   @Test
-  void findBySubjectAndTimeRangeReturnsOrderedByTimestamp() {
+  void findByOwnerSubjectAndTimeRangeReturnsOrderedByTimestamp() {
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("second")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T14:00:00Z")))
         .build();
@@ -246,21 +268,23 @@ class NoteDaoTest {
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
 
-    noteDao.store(n1);
-    noteDao.store(n2);
+    storeNote(n1);
+    storeNote(n2);
 
-    List<Note> results = noteDao.findBySubjectAndTimeRange(OWNER, SUBJECT,
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Note> results = noteDao.findByOwnerSubjectAndTimeRange(
+        OWNER.identifier().uuid(),
+        SUBJECT.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).extracting(Note::value)
         .containsExactly("first", "second");
   }
 
-  // --- findByEvent ---
+  // --- findByOwnerAndEvent ---
 
   @Test
-  void findByEventReturnsMatchingNotes() {
+  void findByOwnerAndEventReturnsMatchingNotes() {
     Event otherEvent = Event.builder().owner(OWNER).subject(SUBJECT).value("other-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
@@ -279,11 +303,12 @@ class NoteDaoTest {
         .timestamp(new Timestamp(Instant.parse("2026-03-28T11:30:00Z")))
         .build();
 
-    noteDao.store(n1);
-    noteDao.store(n2);
-    noteDao.store(n3);
+    storeNote(n1);
+    storeNote(n2);
+    storeNote(n3);
 
-    List<Note> results = noteDao.findByEvent(OWNER, event.identifier());
+    List<Note> results = noteDao.findByOwnerAndEvent(
+        OWNER.identifier().uuid(), event.identifier().uuid());
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Note::value)
@@ -291,14 +316,15 @@ class NoteDaoTest {
   }
 
   @Test
-  void findByEventReturnsEmptyWhenNoMatches() {
-    assertThat(noteDao.findByEvent(OWNER, new Identifier())).isEmpty();
+  void findByOwnerAndEventReturnsEmptyWhenNoMatches() {
+    assertThat(noteDao.findByOwnerAndEvent(
+        OWNER.identifier().uuid(), new Identifier().uuid())).isEmpty();
   }
 
-  // --- findByEventAndTimeRange ---
+  // --- findByOwnerEventAndTimeRange ---
 
   @Test
-  void findByEventAndTimeRangeFiltersBoth() {
+  void findByOwnerEventAndTimeRangeFiltersBoth() {
     Note match = Note.builder().owner(OWNER).subject(SUBJECT).value("match")
         .event(event)
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z")))
@@ -308,19 +334,21 @@ class NoteDaoTest {
         .timestamp(new Timestamp(Instant.parse("2026-03-29T12:00:00Z")))
         .build();
 
-    noteDao.store(match);
-    noteDao.store(wrongTime);
+    storeNote(match);
+    storeNote(wrongTime);
 
-    List<Note> results = noteDao.findByEventAndTimeRange(OWNER, event.identifier(),
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Note> results = noteDao.findByOwnerEventAndTimeRange(
+        OWNER.identifier().uuid(),
+        event.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("match");
   }
 
   @Test
-  void findByEventAndTimeRangeReturnsOrderedByTimestamp() {
+  void findByOwnerEventAndTimeRangeReturnsOrderedByTimestamp() {
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("second")
         .event(event)
         .timestamp(new Timestamp(Instant.parse("2026-03-28T14:00:00Z")))
@@ -330,12 +358,14 @@ class NoteDaoTest {
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
 
-    noteDao.store(n1);
-    noteDao.store(n2);
+    storeNote(n1);
+    storeNote(n2);
 
-    List<Note> results = noteDao.findByEventAndTimeRange(OWNER, event.identifier(),
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Note> results = noteDao.findByOwnerEventAndTimeRange(
+        OWNER.identifier().uuid(),
+        event.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).extracting(Note::value)
         .containsExactly("first", "second");
@@ -346,9 +376,10 @@ class NoteDaoTest {
   @Test
   void storedNoteHasEmptyTags() {
     Note note = Note.builder().owner(OWNER).subject(SUBJECT).value("with tags").build();
-    noteDao.store(note);
+    storeNote(note);
 
-    Note retrieved = noteDao.get(OWNER, note.identifier()).orElseThrow();
+    Note retrieved = noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), note.identifier().uuid()).orElseThrow();
 
     assertThat(retrieved.tags()).isEmpty();
   }
@@ -358,7 +389,7 @@ class NoteDaoTest {
   @Test
   void notesAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.store(other);
+    ownerDao.upsert(other.identifier().uuid(), other.value());
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
     storeSubject(otherSubject);
 
@@ -366,11 +397,14 @@ class NoteDaoTest {
     Note n2 = Note.builder().owner(other).subjectIdentifier(otherSubject.identifier())
         .value("other note").build();
 
-    noteDao.store(n1);
-    noteDao.store(n2);
+    storeNote(n1);
+    storeNote(n2);
 
-    assertThat(noteDao.get(OWNER, n1.identifier())).isPresent();
-    assertThat(noteDao.get(other, n1.identifier())).isEmpty();
-    assertThat(noteDao.get(other, n2.identifier())).isPresent();
+    assertThat(noteDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), n1.identifier().uuid())).isPresent();
+    assertThat(noteDao.findByOwnerAndIdentifier(
+        other.identifier().uuid(), n1.identifier().uuid())).isEmpty();
+    assertThat(noteDao.findByOwnerAndIdentifier(
+        other.identifier().uuid(), n2.identifier().uuid())).isPresent();
   }
 }

@@ -68,7 +68,7 @@ class EventManagerIntegrationTest {
     subjectDao = jdbi.onDemand(SubjectDao.class);
     EventDao eventDao = jdbi.onDemand(EventDao.class);
     TagsDao tagsDao = jdbi.onDemand(TagsDao.class);
-    ownerDao.store(OWNER);
+    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
     subjectDao.upsert(
         SUBJECT.identifier().uuid(),
         SUBJECT.ownerIdentifier().uuid(),
@@ -229,7 +229,7 @@ class EventManagerIntegrationTest {
   @Test
   void eventsAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.store(other);
+    ownerDao.upsert(other.identifier().uuid(), other.value());
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
     subjectDao.upsert(otherSubject.identifier().uuid(), otherSubject.ownerIdentifier().uuid(),
         otherSubject.category().value(), otherSubject.value());

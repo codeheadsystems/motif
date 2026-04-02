@@ -6,6 +6,7 @@ import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
 import com.codeheadsystems.motif.server.model.Subject;
+import com.codeheadsystems.motif.server.model.Tag;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +32,9 @@ public class EventManager {
         event.subject().identifier().uuid(),
         event.value(),
         event.timestamp().toOffsetDateTime());
-    tagsDao.addTags(event.identifier(), event.tags());
+    for (Tag tag : event.tags()) {
+      tagsDao.insertTag(event.identifier().uuid(), tag.value());
+    }
   }
 
   public Optional<Event> get(Owner owner, Identifier identifier) {

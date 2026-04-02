@@ -31,22 +31,6 @@ public interface OwnerDao {
   @SqlQuery("SELECT * FROM owners WHERE value = :value")
   Optional<Owner> findByValue(@Bind("value") String value);
 
-  default void store(Owner owner) {
-    upsert(owner.identifier().uuid(), owner.value());
-  }
-
-  default Optional<Owner> get(Identifier identifier) {
-    return findByIdentifier(identifier.uuid());
-  }
-
-  default boolean delete(Identifier identifier) {
-    return deleteByIdentifier(identifier.uuid()) > 0;
-  }
-
-  default Optional<Owner> find(String value) {
-    return findByValue(value.strip().toUpperCase());
-  }
-
   class OwnerRowMapper implements RowMapper<Owner> {
     @Override
     public Owner map(ResultSet rs, StatementContext ctx) throws SQLException {

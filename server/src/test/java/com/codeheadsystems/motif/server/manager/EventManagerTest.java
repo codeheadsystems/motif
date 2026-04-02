@@ -49,7 +49,7 @@ class EventManagerTest {
   // --- store ---
 
   @Test
-  void storeCallsUpsertAndAddTags() {
+  void storeCallsUpsertWithNoTags() {
     eventManager.store(EVENT);
 
     verify(eventDao).upsert(
@@ -58,16 +58,18 @@ class EventManagerTest {
         EVENT.subject().identifier().uuid(),
         EVENT.value(),
         EVENT.timestamp().toOffsetDateTime());
-    verify(tagsDao).addTags(EVENT.identifier(), EVENT.tags());
+    verifyNoMoreInteractions(tagsDao);
   }
 
   @Test
-  void storeWithTagsPassesTagsToDao() {
+  void storeWithTagsCallsInsertTagForEach() {
     Event withTags = Event.from(EVENT).tags(List.of(new Tag("A"), new Tag("B"))).build();
 
     eventManager.store(withTags);
 
-    verify(tagsDao).addTags(withTags.identifier(), withTags.tags());
+    verify(tagsDao).insertTag(withTags.identifier().uuid(), "A");
+    verify(tagsDao).insertTag(withTags.identifier().uuid(), "B");
+    verifyNoMoreInteractions(tagsDao);
   }
 
   // --- get ---
