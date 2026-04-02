@@ -72,16 +72,26 @@ class EventDaoTest {
         subject.value());
   }
 
-  // --- store and get ---
+  private void storeEvent(Event event) {
+    eventDao.upsert(
+        event.identifier().uuid(),
+        event.ownerIdentifier().uuid(),
+        event.subject().identifier().uuid(),
+        event.value(),
+        event.timestamp().toOffsetDateTime());
+  }
+
+  // --- upsert and find ---
 
   @Test
-  void storeAndRetrieveEvent() {
-    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value( "something happened")
+  void upsertAndFindByOwnerAndIdentifier() {
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("something happened")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
 
-    eventDao.store(event);
-    Optional<Event> result = eventDao.get(OWNER, event.identifier());
+    storeEvent(event);
+    Optional<Event> result = eventDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), event.identifier().uuid());
 
     assertThat(result).isPresent();
     assertThat(result.get().ownerIdentifier().uuid()).isEqualTo(OWNER.identifier().uuid());
@@ -92,24 +102,26 @@ class EventDaoTest {
   }
 
   @Test
-  void getReturnsEmptyWhenNotFound() {
-    assertThat(eventDao.get(OWNER, new Identifier())).isEmpty();
+  void findByOwnerAndIdentifierReturnsEmptyWhenNotFound() {
+    assertThat(eventDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), new Identifier().uuid())).isEmpty();
   }
 
   @Test
-  void storeUpdatesExistingEvent() {
-    Event original = Event.builder().owner(OWNER).subject(SUBJECT).value( "original value")
+  void upsertUpdatesExistingEvent() {
+    Event original = Event.builder().owner(OWNER).subject(SUBJECT).value("original value")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
-    eventDao.store(original);
+    storeEvent(original);
 
     Event updatedEvent = new Event(OWNER.identifier(), SUBJECT, "updated value",
         original.identifier(),
         new Timestamp(Instant.parse("2026-03-28T12:00:00Z")),
         null);
-    eventDao.store(updatedEvent);
+    storeEvent(updatedEvent);
 
-    Optional<Event> result = eventDao.get(OWNER, original.identifier());
+    Optional<Event> result = eventDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), original.identifier().uuid());
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("updated value");
     assertThat(result.get().timestamp().timestamp())
@@ -119,41 +131,46 @@ class EventDaoTest {
   // --- delete ---
 
   @Test
-  void deleteReturnsTrueWhenEventExists() {
-    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value( "to delete").build();
-    eventDao.store(event);
+  void deleteReturnsOneWhenEventExists() {
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("to delete").build();
+    storeEvent(event);
 
-    assertThat(eventDao.delete(OWNER, event.identifier())).isTrue();
-    assertThat(eventDao.get(OWNER, event.identifier())).isEmpty();
+    int deleted = eventDao.deleteByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), event.identifier().uuid());
+    assertThat(deleted).isEqualTo(1);
+    assertThat(eventDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), event.identifier().uuid())).isEmpty();
   }
 
   @Test
-  void deleteReturnsFalseWhenEventDoesNotExist() {
-    assertThat(eventDao.delete(OWNER, new Identifier())).isFalse();
+  void deleteReturnsZeroWhenEventDoesNotExist() {
+    assertThat(eventDao.deleteByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), new Identifier().uuid())).isEqualTo(0);
   }
 
-  // --- findBySubject ---
+  // --- findByOwnerAndSubject ---
 
   @Test
-  void findBySubjectReturnsMatchingEvents() {
+  void findByOwnerAndSubjectReturnsMatchingEvents() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
     storeSubject(other);
 
-    Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value( "event 1")
+    Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("event 1")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
-    Event e2 = Event.builder().owner(OWNER).subject(SUBJECT).value( "event 2")
+    Event e2 = Event.builder().owner(OWNER).subject(SUBJECT).value("event 2")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T11:00:00Z")))
         .build();
     Event e3 = Event.builder().owner(OWNER).subject(other).value("event 3")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:30:00Z")))
         .build();
 
-    eventDao.store(e1);
-    eventDao.store(e2);
-    eventDao.store(e3);
+    storeEvent(e1);
+    storeEvent(e2);
+    storeEvent(e3);
 
-    List<Event> results = eventDao.findBySubject(OWNER, SUBJECT);
+    List<Event> results = eventDao.findByOwnerAndSubject(
+        OWNER.identifier().uuid(), SUBJECT.identifier().uuid());
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Event::value)
@@ -161,38 +178,40 @@ class EventDaoTest {
   }
 
   @Test
-  void findBySubjectReturnsEmptyWhenNoMatches() {
+  void findByOwnerAndSubjectReturnsEmptyWhenNoMatches() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "nonexistent");
     storeSubject(other);
 
-    assertThat(eventDao.findBySubject(OWNER, other)).isEmpty();
+    assertThat(eventDao.findByOwnerAndSubject(
+        OWNER.identifier().uuid(), other.identifier().uuid())).isEmpty();
   }
 
-  // --- findByTimeRange ---
+  // --- findByOwnerAndTimeRange ---
 
   @Test
-  void findByTimeRangeReturnsEventsInRange() {
-    Event before = Event.builder().owner(OWNER).subject(SUBJECT).value( "before")
+  void findByOwnerAndTimeRangeReturnsEventsInRange() {
+    Event before = Event.builder().owner(OWNER).subject(SUBJECT).value("before")
         .timestamp(new Timestamp(Instant.parse("2026-03-27T09:00:00Z")))
         .build();
-    Event inRange1 = Event.builder().owner(OWNER).subject(SUBJECT).value( "in range 1")
+    Event inRange1 = Event.builder().owner(OWNER).subject(SUBJECT).value("in range 1")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
-    Event inRange2 = Event.builder().owner(OWNER).subject(SUBJECT).value( "in range 2")
+    Event inRange2 = Event.builder().owner(OWNER).subject(SUBJECT).value("in range 2")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T15:00:00Z")))
         .build();
-    Event after = Event.builder().owner(OWNER).subject(SUBJECT).value( "after")
+    Event after = Event.builder().owner(OWNER).subject(SUBJECT).value("after")
         .timestamp(new Timestamp(Instant.parse("2026-03-29T09:00:00Z")))
         .build();
 
-    eventDao.store(before);
-    eventDao.store(inRange1);
-    eventDao.store(inRange2);
-    eventDao.store(after);
+    storeEvent(before);
+    storeEvent(inRange1);
+    storeEvent(inRange2);
+    storeEvent(after);
 
-    List<Event> results = eventDao.findByTimeRange(OWNER,
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Event> results = eventDao.findByOwnerAndTimeRange(
+        OWNER.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Event::value)
@@ -200,64 +219,69 @@ class EventDaoTest {
   }
 
   @Test
-  void findByTimeRangeIsInclusive() {
+  void findByOwnerAndTimeRangeIsInclusive() {
     Instant exact = Instant.parse("2026-03-28T12:00:00Z");
-    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value( "exact")
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("exact")
         .timestamp(new Timestamp(exact))
         .build();
-    eventDao.store(event);
+    storeEvent(event);
 
-    List<Event> results = eventDao.findByTimeRange(OWNER,
-        new Timestamp(exact), new Timestamp(exact));
+    Timestamp ts = new Timestamp(exact);
+    List<Event> results = eventDao.findByOwnerAndTimeRange(
+        OWNER.identifier().uuid(), ts.toOffsetDateTime(), ts.toOffsetDateTime());
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("exact");
   }
 
-  // --- findBySubjectAndTimeRange ---
+  // --- findByOwnerSubjectAndTimeRange ---
 
   @Test
-  void findBySubjectAndTimeRangeFiltersBoth() {
+  void findByOwnerSubjectAndTimeRangeFiltersBoth() {
     Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
     storeSubject(other);
 
-    Event match = Event.builder().owner(OWNER).subject(SUBJECT).value( "match")
+    Event match = Event.builder().owner(OWNER).subject(SUBJECT).value("match")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z")))
         .build();
     Event wrongSubject = Event.builder().owner(OWNER).subject(other).value("wrong subject")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z")))
         .build();
-    Event wrongTime = Event.builder().owner(OWNER).subject(SUBJECT).value( "wrong time")
+    Event wrongTime = Event.builder().owner(OWNER).subject(SUBJECT).value("wrong time")
         .timestamp(new Timestamp(Instant.parse("2026-03-29T12:00:00Z")))
         .build();
 
-    eventDao.store(match);
-    eventDao.store(wrongSubject);
-    eventDao.store(wrongTime);
+    storeEvent(match);
+    storeEvent(wrongSubject);
+    storeEvent(wrongTime);
 
-    List<Event> results = eventDao.findBySubjectAndTimeRange(OWNER, SUBJECT,
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Event> results = eventDao.findByOwnerSubjectAndTimeRange(
+        OWNER.identifier().uuid(),
+        SUBJECT.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("match");
   }
 
   @Test
-  void findBySubjectAndTimeRangeReturnsOrderedByTimestamp() {
-    Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value( "second")
+  void findByOwnerSubjectAndTimeRangeReturnsOrderedByTimestamp() {
+    Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("second")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T14:00:00Z")))
         .build();
-    Event e2 = Event.builder().owner(OWNER).subject(SUBJECT).value( "first")
+    Event e2 = Event.builder().owner(OWNER).subject(SUBJECT).value("first")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
 
-    eventDao.store(e1);
-    eventDao.store(e2);
+    storeEvent(e1);
+    storeEvent(e2);
 
-    List<Event> results = eventDao.findBySubjectAndTimeRange(OWNER, SUBJECT,
-        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+    List<Event> results = eventDao.findByOwnerSubjectAndTimeRange(
+        OWNER.identifier().uuid(),
+        SUBJECT.identifier().uuid(),
+        new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
 
     assertThat(results).extracting(Event::value)
         .containsExactly("first", "second");
@@ -267,10 +291,11 @@ class EventDaoTest {
 
   @Test
   void storedEventHasEmptyTags() {
-    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value( "with tags").build();
-    eventDao.store(event);
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("with tags").build();
+    storeEvent(event);
 
-    Event retrieved = eventDao.get(OWNER, event.identifier()).orElseThrow();
+    Event retrieved = eventDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), event.identifier().uuid()).orElseThrow();
 
     assertThat(retrieved.tags()).isEmpty();
   }
@@ -284,14 +309,17 @@ class EventDaoTest {
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
     storeSubject(otherSubject);
 
-    Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value( "owner event").build();
+    Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("owner event").build();
     Event e2 = Event.builder().owner(other).subject(otherSubject).value("other event").build();
 
-    eventDao.store(e1);
-    eventDao.store(e2);
+    storeEvent(e1);
+    storeEvent(e2);
 
-    assertThat(eventDao.get(OWNER, e1.identifier())).isPresent();
-    assertThat(eventDao.get(other, e1.identifier())).isEmpty();
-    assertThat(eventDao.get(other, e2.identifier())).isPresent();
+    assertThat(eventDao.findByOwnerAndIdentifier(
+        OWNER.identifier().uuid(), e1.identifier().uuid())).isPresent();
+    assertThat(eventDao.findByOwnerAndIdentifier(
+        other.identifier().uuid(), e1.identifier().uuid())).isEmpty();
+    assertThat(eventDao.findByOwnerAndIdentifier(
+        other.identifier().uuid(), e2.identifier().uuid())).isPresent();
   }
 }

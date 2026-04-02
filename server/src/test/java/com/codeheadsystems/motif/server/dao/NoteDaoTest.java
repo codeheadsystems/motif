@@ -71,7 +71,7 @@ class NoteDaoTest {
     event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
-    eventDao.store(event);
+    storeEvent(event);
   }
 
   private void storeSubject(Subject subject) {
@@ -80,6 +80,15 @@ class NoteDaoTest {
         subject.ownerIdentifier().uuid(),
         subject.category().value(),
         subject.value());
+  }
+
+  private void storeEvent(Event event) {
+    eventDao.upsert(
+        event.identifier().uuid(),
+        event.ownerIdentifier().uuid(),
+        event.subject().identifier().uuid(),
+        event.value(),
+        event.timestamp().toOffsetDateTime());
   }
 
   // --- store and get ---
@@ -255,7 +264,7 @@ class NoteDaoTest {
     Event otherEvent = Event.builder().owner(OWNER).subject(SUBJECT).value("other-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
         .build();
-    eventDao.store(otherEvent);
+    storeEvent(otherEvent);
 
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("note for event")
         .event(event)

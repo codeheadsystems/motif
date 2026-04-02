@@ -3,7 +3,6 @@ package com.codeheadsystems.motif.server.dao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
-import com.codeheadsystems.motif.server.model.Owner;
 import com.codeheadsystems.motif.server.model.Subject;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.sql.ResultSet;
@@ -66,38 +65,6 @@ public interface EventDao {
                                               @Bind("subjectUuid") UUID subjectUuid,
                                               @Bind("from") OffsetDateTime from,
                                               @Bind("to") OffsetDateTime to);
-
-  default void store(Event event) {
-    upsert(event.identifier().uuid(),
-        event.ownerIdentifier().uuid(),
-        event.subject().identifier().uuid(),
-        event.value(),
-        event.timestamp().toOffsetDateTime());
-  }
-
-  default Optional<Event> get(Owner owner, Identifier identifier) {
-    return findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
-  }
-
-  default boolean delete(Owner owner, Identifier identifier) {
-    return deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
-  }
-
-  default List<Event> findBySubject(Owner owner, Subject subject) {
-    return findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid());
-  }
-
-  default List<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to) {
-    return findByOwnerAndTimeRange(owner.identifier().uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime());
-  }
-
-  default List<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
-                                                 Timestamp from, Timestamp to) {
-    return findByOwnerSubjectAndTimeRange(owner.identifier().uuid(),
-        subject.identifier().uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime());
-  }
 
   class EventRowMapper implements RowMapper<Event> {
     @Override
