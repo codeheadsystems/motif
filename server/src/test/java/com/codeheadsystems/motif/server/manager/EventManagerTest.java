@@ -1,12 +1,13 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.codeheadsystems.motif.server.dao.EventDao;
-import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
@@ -37,19 +38,19 @@ class EventManagerTest {
   @Mock
   private EventDao eventDao;
   @Mock
-  private TagsDao tagsDao;
+  private TagsManager tagsManager;
 
   private EventManager eventManager;
 
   @BeforeEach
   void setUp() {
-    eventManager = new EventManager(eventDao, tagsDao);
+    eventManager = new EventManager(eventDao, tagsManager);
   }
 
   // --- store ---
 
   @Test
-  void storeCallsUpsertWithNoTags() {
+  void storeCallsUpsertAndSyncsTags() {
     eventManager.store(EVENT);
 
     verify(eventDao).upsert(
@@ -58,30 +59,31 @@ class EventManagerTest {
         EVENT.subject().identifier().uuid(),
         EVENT.value(),
         EVENT.timestamp().toOffsetDateTime());
-    verifyNoMoreInteractions(tagsDao);
+    verify(tagsManager).syncTags(EVENT.identifier(), EVENT.tags());
   }
 
   @Test
-  void storeWithTagsCallsInsertTagForEach() {
+  void storeWithTagsSyncsTagsWithTagsManager() {
     Event withTags = Event.from(EVENT).tags(List.of(new Tag("A"), new Tag("B"))).build();
 
     eventManager.store(withTags);
 
-    verify(tagsDao).insertTag(withTags.identifier().uuid(), "A");
-    verify(tagsDao).insertTag(withTags.identifier().uuid(), "B");
-    verifyNoMoreInteractions(tagsDao);
+    verify(tagsManager).syncTags(withTags.identifier(), List.of(new Tag("A"), new Tag("B")));
   }
 
   // --- get ---
 
   @Test
-  void getDelegatesToDao() {
+  void getHydratesTagsFromTagsManager() {
     when(eventDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), EVENT.identifier().uuid()))
         .thenReturn(Optional.of(EVENT));
+    when(tagsManager.tagsFor(EVENT.identifier()))
+        .thenReturn(List.of(new Tag("X")));
 
     Optional<Event> result = eventManager.get(OWNER, EVENT.identifier());
 
-    assertThat(result).contains(EVENT);
+    assertThat(result).isPresent();
+    assertThat(result.get().tags()).containsExactly(new Tag("X"));
   }
 
   @Test
@@ -91,24 +93,27 @@ class EventManagerTest {
         .thenReturn(Optional.empty());
 
     assertThat(eventManager.get(OWNER, unknown)).isEmpty();
+    verifyNoInteractions(tagsManager);
   }
 
   // --- delete ---
 
   @Test
-  void deleteReturnsTrueWhenRowDeleted() {
+  void deleteReturnsTrueAndDeletesTags() {
     when(eventDao.deleteByOwnerAndIdentifier(OWNER.identifier().uuid(), EVENT.identifier().uuid()))
         .thenReturn(1);
 
     assertThat(eventManager.delete(OWNER, EVENT.identifier())).isTrue();
+    verify(tagsManager).deleteAllTags(EVENT.identifier());
   }
 
   @Test
-  void deleteReturnsFalseWhenNoRowDeleted() {
+  void deleteReturnsFalseAndDoesNotDeleteTags() {
     when(eventDao.deleteByOwnerAndIdentifier(OWNER.identifier().uuid(), EVENT.identifier().uuid()))
         .thenReturn(0);
 
     assertThat(eventManager.delete(OWNER, EVENT.identifier())).isFalse();
+    verifyNoInteractions(tagsManager);
   }
 
   // --- update ---
@@ -127,6 +132,7 @@ class EventManagerTest {
         updated.subject().identifier().uuid(),
         "updated",
         updated.timestamp().toOffsetDateTime());
+    verify(tagsManager).syncTags(eq(updated.identifier()), any());
   }
 
   @Test
@@ -135,47 +141,58 @@ class EventManagerTest {
         .thenReturn(Optional.empty());
 
     assertThat(eventManager.update(EVENT)).isFalse();
-    verifyNoMoreInteractions(tagsDao);
+    verifyNoInteractions(tagsManager);
   }
 
   // --- findBySubject ---
 
   @Test
-  void findBySubjectDelegatesToDao() {
-    List<Event> expected = List.of(EVENT);
+  void findBySubjectHydratesTags() {
     when(eventDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
-        .thenReturn(expected);
+        .thenReturn(List.of(EVENT));
+    when(tagsManager.tagsFor(EVENT.identifier()))
+        .thenReturn(List.of(new Tag("Y")));
 
-    assertThat(eventManager.findBySubject(OWNER, SUBJECT)).isEqualTo(expected);
+    List<Event> result = eventManager.findBySubject(OWNER, SUBJECT);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("Y"));
   }
 
   // --- findByTimeRange ---
 
   @Test
-  void findByTimeRangeDelegatesToDao() {
+  void findByTimeRangeHydratesTags() {
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
-    List<Event> expected = List.of(EVENT);
     when(eventDao.findByOwnerAndTimeRange(
         OWNER.identifier().uuid(), from.toOffsetDateTime(), to.toOffsetDateTime()))
-        .thenReturn(expected);
+        .thenReturn(List.of(EVENT));
+    when(tagsManager.tagsFor(EVENT.identifier()))
+        .thenReturn(List.of(new Tag("Z")));
 
-    assertThat(eventManager.findByTimeRange(OWNER, from, to)).isEqualTo(expected);
+    List<Event> result = eventManager.findByTimeRange(OWNER, from, to);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("Z"));
   }
 
   // --- findBySubjectAndTimeRange ---
 
   @Test
-  void findBySubjectAndTimeRangeDelegatesToDao() {
+  void findBySubjectAndTimeRangeHydratesTags() {
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
-    List<Event> expected = List.of(EVENT);
     when(eventDao.findByOwnerSubjectAndTimeRange(
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime()))
-        .thenReturn(expected);
+        .thenReturn(List.of(EVENT));
+    when(tagsManager.tagsFor(EVENT.identifier()))
+        .thenReturn(List.of(new Tag("W")));
 
-    assertThat(eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to))
-        .isEqualTo(expected);
+    List<Event> result = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("W"));
   }
 }

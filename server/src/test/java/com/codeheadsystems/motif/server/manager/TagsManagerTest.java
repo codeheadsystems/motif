@@ -82,4 +82,64 @@ class TagsManagerTest {
 
     assertThat(tagsManager.removeTags(ID, List.of(new Tag("NONEXISTENT")))).isFalse();
   }
+
+  // --- deleteAllTags ---
+
+  @Test
+  void deleteAllTagsReturnsTrueWhenTagsExisted() {
+    when(tagsDao.deleteAllTags(ID.uuid())).thenReturn(2);
+
+    assertThat(tagsManager.deleteAllTags(ID)).isTrue();
+  }
+
+  @Test
+  void deleteAllTagsReturnsFalseWhenNoTags() {
+    when(tagsDao.deleteAllTags(ID.uuid())).thenReturn(0);
+
+    assertThat(tagsManager.deleteAllTags(ID)).isFalse();
+  }
+
+  // --- syncTags ---
+
+  @Test
+  void syncTagsAddsNewAndRemovesOld() {
+    when(tagsDao.tagValuesFor(ID.uuid())).thenReturn(List.of("A", "B"));
+
+    tagsManager.syncTags(ID, List.of(new Tag("B"), new Tag("C")));
+
+    verify(tagsDao).deleteTag(ID.uuid(), "A");
+    verify(tagsDao).insertTag(ID.uuid(), "C");
+    verifyNoMoreInteractions(tagsDao);
+  }
+
+  @Test
+  void syncTagsWithEmptyDesiredRemovesAll() {
+    when(tagsDao.tagValuesFor(ID.uuid())).thenReturn(List.of("A", "B"));
+
+    tagsManager.syncTags(ID, List.of());
+
+    verify(tagsDao).deleteTag(ID.uuid(), "A");
+    verify(tagsDao).deleteTag(ID.uuid(), "B");
+    verifyNoMoreInteractions(tagsDao);
+  }
+
+  @Test
+  void syncTagsWithEmptyExistingAddsAll() {
+    when(tagsDao.tagValuesFor(ID.uuid())).thenReturn(List.of());
+
+    tagsManager.syncTags(ID, List.of(new Tag("A"), new Tag("B")));
+
+    verify(tagsDao).insertTag(ID.uuid(), "A");
+    verify(tagsDao).insertTag(ID.uuid(), "B");
+    verifyNoMoreInteractions(tagsDao);
+  }
+
+  @Test
+  void syncTagsNoChangesWhenAlreadyInSync() {
+    when(tagsDao.tagValuesFor(ID.uuid())).thenReturn(List.of("A", "B"));
+
+    tagsManager.syncTags(ID, List.of(new Tag("A"), new Tag("B")));
+
+    verifyNoMoreInteractions(tagsDao);
+  }
 }

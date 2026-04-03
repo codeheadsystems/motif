@@ -18,4 +18,7 @@ public interface TagsDao {
   @SqlUpdate("DELETE FROM tags WHERE uuid = :uuid AND tag_value = :tag")
   int deleteTag(@Bind("uuid") UUID uuid, @Bind("tag") String tag);
 
+  @SqlUpdate("DELETE FROM tags WHERE uuid = :uuid")
+  int deleteAllTags(@Bind("uuid") UUID uuid);
+
 }

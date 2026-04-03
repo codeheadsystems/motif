@@ -68,13 +68,14 @@ class EventManagerIntegrationTest {
     subjectDao = jdbi.onDemand(SubjectDao.class);
     EventDao eventDao = jdbi.onDemand(EventDao.class);
     TagsDao tagsDao = jdbi.onDemand(TagsDao.class);
+    TagsManager tagsManager = new TagsManager(tagsDao);
     ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
     subjectDao.upsert(
         SUBJECT.identifier().uuid(),
         SUBJECT.ownerIdentifier().uuid(),
         SUBJECT.category().value(),
         SUBJECT.value());
-    eventManager = new EventManager(eventDao, tagsDao);
+    eventManager = new EventManager(eventDao, tagsManager);
   }
 
   // --- store and get ---

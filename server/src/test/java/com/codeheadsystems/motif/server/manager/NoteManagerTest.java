@@ -1,12 +1,13 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.codeheadsystems.motif.server.dao.NoteDao;
-import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
@@ -40,19 +41,19 @@ class NoteManagerTest {
   @Mock
   private NoteDao noteDao;
   @Mock
-  private TagsDao tagsDao;
+  private TagsManager tagsManager;
 
   private NoteManager noteManager;
 
   @BeforeEach
   void setUp() {
-    noteManager = new NoteManager(noteDao, tagsDao);
+    noteManager = new NoteManager(noteDao, tagsManager);
   }
 
   // --- store ---
 
   @Test
-  void storeCallsUpsertWithCorrectArgs() {
+  void storeCallsUpsertAndSyncsTags() {
     noteManager.store(NOTE);
 
     verify(noteDao).upsert(
@@ -62,6 +63,7 @@ class NoteManagerTest {
         NOTE.eventIdentifier().uuid(),
         NOTE.value(),
         NOTE.timestamp().toOffsetDateTime());
+    verify(tagsManager).syncTags(NOTE.identifier(), NOTE.tags());
   }
 
   @Test
@@ -78,29 +80,31 @@ class NoteManagerTest {
         null,
         noEvent.value(),
         noEvent.timestamp().toOffsetDateTime());
+    verify(tagsManager).syncTags(noEvent.identifier(), noEvent.tags());
   }
 
   @Test
-  void storeWithTagsCallsInsertTagForEach() {
+  void storeWithTagsSyncsTagsWithTagsManager() {
     Note withTags = Note.from(NOTE).tags(List.of(new Tag("A"), new Tag("B"))).build();
 
     noteManager.store(withTags);
 
-    verify(tagsDao).insertTag(withTags.identifier().uuid(), "A");
-    verify(tagsDao).insertTag(withTags.identifier().uuid(), "B");
-    verifyNoMoreInteractions(tagsDao);
+    verify(tagsManager).syncTags(withTags.identifier(), List.of(new Tag("A"), new Tag("B")));
   }
 
   // --- get ---
 
   @Test
-  void getDelegatesToDao() {
+  void getHydratesTagsFromTagsManager() {
     when(noteDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), NOTE.identifier().uuid()))
         .thenReturn(Optional.of(NOTE));
+    when(tagsManager.tagsFor(NOTE.identifier()))
+        .thenReturn(List.of(new Tag("X")));
 
     Optional<Note> result = noteManager.get(OWNER, NOTE.identifier());
 
-    assertThat(result).contains(NOTE);
+    assertThat(result).isPresent();
+    assertThat(result.get().tags()).containsExactly(new Tag("X"));
   }
 
   @Test
@@ -110,24 +114,27 @@ class NoteManagerTest {
         .thenReturn(Optional.empty());
 
     assertThat(noteManager.get(OWNER, unknown)).isEmpty();
+    verifyNoInteractions(tagsManager);
   }
 
   // --- delete ---
 
   @Test
-  void deleteReturnsTrueWhenRowDeleted() {
+  void deleteReturnsTrueAndDeletesTags() {
     when(noteDao.deleteByOwnerAndIdentifier(OWNER.identifier().uuid(), NOTE.identifier().uuid()))
         .thenReturn(1);
 
     assertThat(noteManager.delete(OWNER, NOTE.identifier())).isTrue();
+    verify(tagsManager).deleteAllTags(NOTE.identifier());
   }
 
   @Test
-  void deleteReturnsFalseWhenNoRowDeleted() {
+  void deleteReturnsFalseAndDoesNotDeleteTags() {
     when(noteDao.deleteByOwnerAndIdentifier(OWNER.identifier().uuid(), NOTE.identifier().uuid()))
         .thenReturn(0);
 
     assertThat(noteManager.delete(OWNER, NOTE.identifier())).isFalse();
+    verifyNoInteractions(tagsManager);
   }
 
   // --- update ---
@@ -147,6 +154,7 @@ class NoteManagerTest {
         updated.eventIdentifier().uuid(),
         "updated",
         updated.timestamp().toOffsetDateTime());
+    verify(tagsManager).syncTags(eq(updated.identifier()), any());
   }
 
   @Test
@@ -155,60 +163,74 @@ class NoteManagerTest {
         .thenReturn(Optional.empty());
 
     assertThat(noteManager.update(NOTE)).isFalse();
-    verifyNoMoreInteractions(tagsDao);
+    verifyNoInteractions(tagsManager);
   }
 
   // --- findBySubject ---
 
   @Test
-  void findBySubjectDelegatesToDao() {
-    List<Note> expected = List.of(NOTE);
+  void findBySubjectHydratesTags() {
     when(noteDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
-        .thenReturn(expected);
+        .thenReturn(List.of(NOTE));
+    when(tagsManager.tagsFor(NOTE.identifier()))
+        .thenReturn(List.of(new Tag("Y")));
 
-    assertThat(noteManager.findBySubject(OWNER, SUBJECT)).isEqualTo(expected);
+    List<Note> result = noteManager.findBySubject(OWNER, SUBJECT);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("Y"));
   }
 
   // --- findBySubjectAndTimeRange ---
 
   @Test
-  void findBySubjectAndTimeRangeDelegatesToDao() {
+  void findBySubjectAndTimeRangeHydratesTags() {
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
-    List<Note> expected = List.of(NOTE);
     when(noteDao.findByOwnerSubjectAndTimeRange(
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime()))
-        .thenReturn(expected);
+        .thenReturn(List.of(NOTE));
+    when(tagsManager.tagsFor(NOTE.identifier()))
+        .thenReturn(List.of(new Tag("Z")));
 
-    assertThat(noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to))
-        .isEqualTo(expected);
+    List<Note> result = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("Z"));
   }
 
   // --- findByEvent ---
 
   @Test
-  void findByEventDelegatesToDao() {
-    List<Note> expected = List.of(NOTE);
+  void findByEventHydratesTags() {
     when(noteDao.findByOwnerAndEvent(OWNER.identifier().uuid(), EVENT.identifier().uuid()))
-        .thenReturn(expected);
+        .thenReturn(List.of(NOTE));
+    when(tagsManager.tagsFor(NOTE.identifier()))
+        .thenReturn(List.of(new Tag("W")));
 
-    assertThat(noteManager.findByEvent(OWNER, EVENT.identifier())).isEqualTo(expected);
+    List<Note> result = noteManager.findByEvent(OWNER, EVENT.identifier());
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("W"));
   }
 
   // --- findByEventAndTimeRange ---
 
   @Test
-  void findByEventAndTimeRangeDelegatesToDao() {
+  void findByEventAndTimeRangeHydratesTags() {
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
-    List<Note> expected = List.of(NOTE);
     when(noteDao.findByOwnerEventAndTimeRange(
         OWNER.identifier().uuid(), EVENT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime()))
-        .thenReturn(expected);
+        .thenReturn(List.of(NOTE));
+    when(tagsManager.tagsFor(NOTE.identifier()))
+        .thenReturn(List.of(new Tag("V")));
 
-    assertThat(noteManager.findByEventAndTimeRange(OWNER, EVENT.identifier(), from, to))
-        .isEqualTo(expected);
+    List<Note> result = noteManager.findByEventAndTimeRange(OWNER, EVENT.identifier(), from, to);
+
+    assertThat(result).hasSize(1);
+    assertThat(result.getFirst().tags()).containsExactly(new Tag("V"));
   }
 }

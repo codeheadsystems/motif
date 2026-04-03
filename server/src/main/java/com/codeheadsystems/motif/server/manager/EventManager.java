@@ -1,7 +1,6 @@
 package com.codeheadsystems.motif.server.manager;
 
 import com.codeheadsystems.motif.server.dao.EventDao;
-import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
@@ -17,12 +16,12 @@ import javax.inject.Singleton;
 public class EventManager {
 
   private final EventDao eventDao;
-  private final TagsDao tagsDao;
+  private final TagsManager tagsManager;
 
   @Inject
-  public EventManager(final EventDao eventDao, final TagsDao tagsDao) {
+  public EventManager(final EventDao eventDao, final TagsManager tagsManager) {
     this.eventDao = eventDao;
-    this.tagsDao = tagsDao;
+    this.tagsManager = tagsManager;
   }
 
   public void store(Event event) {
@@ -32,17 +31,20 @@ public class EventManager {
         event.subject().identifier().uuid(),
         event.value(),
         event.timestamp().toOffsetDateTime());
-    for (Tag tag : event.tags()) {
-      tagsDao.insertTag(event.identifier().uuid(), tag.value());
-    }
+    tagsManager.syncTags(event.identifier(), event.tags());
   }
 
   public Optional<Event> get(Owner owner, Identifier identifier) {
-    return eventDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
+    return eventDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid())
+        .map(this::hydrateTags);
   }
 
   public boolean delete(Owner owner, Identifier identifier) {
-    return eventDao.deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
+    boolean deleted = eventDao.deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
+    if (deleted) {
+      tagsManager.deleteAllTags(identifier);
+    }
+    return deleted;
   }
 
   public boolean update(Event event) {
@@ -56,14 +58,16 @@ public class EventManager {
   }
 
   public List<Event> findBySubject(Owner owner, Subject subject) {
-    return eventDao.findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid());
+    return eventDao.findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid())
+        .stream().map(this::hydrateTags).toList();
   }
 
   public List<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to) {
     return eventDao.findByOwnerAndTimeRange(
         owner.identifier().uuid(),
         from.toOffsetDateTime(),
-        to.toOffsetDateTime());
+        to.toOffsetDateTime())
+        .stream().map(this::hydrateTags).toList();
   }
 
   public List<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
@@ -72,6 +76,12 @@ public class EventManager {
         owner.identifier().uuid(),
         subject.identifier().uuid(),
         from.toOffsetDateTime(),
-        to.toOffsetDateTime());
+        to.toOffsetDateTime())
+        .stream().map(this::hydrateTags).toList();
+  }
+
+  private Event hydrateTags(Event event) {
+    List<Tag> tags = tagsManager.tagsFor(event.identifier());
+    return Event.from(event).tags(tags).build();
   }
 }

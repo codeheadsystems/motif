@@ -1,11 +1,11 @@
 package com.codeheadsystems.motif.server.manager;
 
 import com.codeheadsystems.motif.server.dao.NoteDao;
-import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Note;
 import com.codeheadsystems.motif.server.model.Owner;
 import com.codeheadsystems.motif.server.model.Subject;
+import com.codeheadsystems.motif.server.model.Tag;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.util.List;
 import java.util.Optional;
@@ -16,12 +16,12 @@ import javax.inject.Singleton;
 public class NoteManager {
 
   private final NoteDao noteDao;
-  private final TagsDao tagsDao;
+  private final TagsManager tagsManager;
 
   @Inject
-  public NoteManager(final NoteDao noteDao, final TagsDao tagsDao) {
+  public NoteManager(final NoteDao noteDao, final TagsManager tagsManager) {
     this.noteDao = noteDao;
-    this.tagsDao = tagsDao;
+    this.tagsManager = tagsManager;
   }
 
   public void store(Note note) {
@@ -32,17 +32,20 @@ public class NoteManager {
         note.eventIdentifier() != null ? note.eventIdentifier().uuid() : null,
         note.value(),
         note.timestamp().toOffsetDateTime());
-    for (var tag : note.tags()) {
-      tagsDao.insertTag(note.identifier().uuid(), tag.value());
-    }
+    tagsManager.syncTags(note.identifier(), note.tags());
   }
 
   public Optional<Note> get(Owner owner, Identifier identifier) {
-    return noteDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
+    return noteDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid())
+        .map(this::hydrateTags);
   }
 
   public boolean delete(Owner owner, Identifier identifier) {
-    return noteDao.deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
+    boolean deleted = noteDao.deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
+    if (deleted) {
+      tagsManager.deleteAllTags(identifier);
+    }
+    return deleted;
   }
 
   public boolean update(Note note) {
@@ -56,7 +59,8 @@ public class NoteManager {
   }
 
   public List<Note> findBySubject(Owner owner, Subject subject) {
-    return noteDao.findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid());
+    return noteDao.findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid())
+        .stream().map(this::hydrateTags).toList();
   }
 
   public List<Note> findBySubjectAndTimeRange(Owner owner, Subject subject,
@@ -65,11 +69,13 @@ public class NoteManager {
         owner.identifier().uuid(),
         subject.identifier().uuid(),
         from.toOffsetDateTime(),
-        to.toOffsetDateTime());
+        to.toOffsetDateTime())
+        .stream().map(this::hydrateTags).toList();
   }
 
   public List<Note> findByEvent(Owner owner, Identifier eventIdentifier) {
-    return noteDao.findByOwnerAndEvent(owner.identifier().uuid(), eventIdentifier.uuid());
+    return noteDao.findByOwnerAndEvent(owner.identifier().uuid(), eventIdentifier.uuid())
+        .stream().map(this::hydrateTags).toList();
   }
 
   public List<Note> findByEventAndTimeRange(Owner owner, Identifier eventIdentifier,
@@ -78,6 +84,12 @@ public class NoteManager {
         owner.identifier().uuid(),
         eventIdentifier.uuid(),
         from.toOffsetDateTime(),
-        to.toOffsetDateTime());
+        to.toOffsetDateTime())
+        .stream().map(this::hydrateTags).toList();
+  }
+
+  private Note hydrateTags(Note note) {
+    List<Tag> tags = tagsManager.tagsFor(note.identifier());
+    return Note.from(note).tags(tags).build();
   }
 }

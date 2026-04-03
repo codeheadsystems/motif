@@ -72,6 +72,7 @@ class NoteManagerIntegrationTest {
     eventDao = jdbi.onDemand(EventDao.class);
     NoteDao noteDao = jdbi.onDemand(NoteDao.class);
     TagsDao tagsDao = jdbi.onDemand(TagsDao.class);
+    TagsManager tagsManager = new TagsManager(tagsDao);
     ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
     subjectDao.upsert(SUBJECT.identifier().uuid(), SUBJECT.ownerIdentifier().uuid(),
         SUBJECT.category().value(), SUBJECT.value());
@@ -80,7 +81,7 @@ class NoteManagerIntegrationTest {
     eventDao.upsert(event.identifier().uuid(), event.ownerIdentifier().uuid(),
         event.subject().identifier().uuid(), event.value(),
         event.timestamp().toOffsetDateTime());
-    noteManager = new NoteManager(noteDao, tagsDao);
+    noteManager = new NoteManager(noteDao, tagsManager);
   }
 
   // --- store and get ---

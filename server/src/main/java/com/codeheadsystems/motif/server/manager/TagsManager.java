@@ -3,7 +3,9 @@ package com.codeheadsystems.motif.server.manager;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Tag;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -39,5 +41,27 @@ public class TagsManager {
       removed += tagsDao.deleteTag(uuid, tag.value());
     }
     return removed > 0;
+  }
+
+  public boolean deleteAllTags(Identifier identifier) {
+    return tagsDao.deleteAllTags(identifier.uuid()) > 0;
+  }
+
+  public void syncTags(Identifier identifier, List<Tag> desiredTags) {
+    Set<String> desired = new HashSet<>();
+    for (Tag tag : desiredTags) {
+      desired.add(tag.value());
+    }
+    Set<String> existing = new HashSet<>(tagsDao.tagValuesFor(identifier.uuid()));
+    for (String tag : existing) {
+      if (!desired.contains(tag)) {
+        tagsDao.deleteTag(identifier.uuid(), tag);
+      }
+    }
+    for (String tag : desired) {
+      if (!existing.contains(tag)) {
+        tagsDao.insertTag(identifier.uuid(), tag);
+      }
+    }
   }
 }
