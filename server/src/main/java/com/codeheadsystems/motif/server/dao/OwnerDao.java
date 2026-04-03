@@ -16,20 +16,31 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(OwnerDao.OwnerRowMapper.class)
 public interface OwnerDao {
 
-  @SqlUpdate("INSERT INTO owners (uuid, value) "
-      + "VALUES (:uuid, :value) "
+  @SqlUpdate("INSERT INTO owners (uuid, value, deleted) "
+      + "VALUES (:uuid, :value, :deleted) "
       + "ON CONFLICT (uuid) DO UPDATE SET "
-      + "value = EXCLUDED.value")
-  void upsert(@Bind("uuid") UUID uuid, @Bind("value") String value);
+      + "value = EXCLUDED.value, "
+      + "deleted = EXCLUDED.deleted")
+  void upsert(@Bind("uuid") UUID uuid, @Bind("value") String value,
+              @Bind("deleted") boolean deleted);
 
-  @SqlQuery("SELECT * FROM owners WHERE uuid = :uuid")
+  @SqlQuery("SELECT * FROM owners WHERE uuid = :uuid AND deleted = false")
   Optional<Owner> findByIdentifier(@Bind("uuid") UUID uuid);
 
-  @SqlUpdate("DELETE FROM owners WHERE uuid = :uuid")
+  @SqlQuery("SELECT * FROM owners WHERE uuid = :uuid")
+  Optional<Owner> findByIdentifierIncludingDeleted(@Bind("uuid") UUID uuid);
+
+  @SqlUpdate("UPDATE owners SET deleted = true WHERE uuid = :uuid AND deleted = false")
+  int softDelete(@Bind("uuid") UUID uuid);
+
+  @SqlUpdate("DELETE FROM owners WHERE uuid = :uuid AND deleted = true")
   int deleteByIdentifier(@Bind("uuid") UUID uuid);
 
-  @SqlQuery("SELECT * FROM owners WHERE value = :value")
+  @SqlQuery("SELECT * FROM owners WHERE value = :value AND deleted = false")
   Optional<Owner> findByValue(@Bind("value") String value);
+
+  @SqlQuery("SELECT * FROM owners WHERE value = :value")
+  Optional<Owner> findByValueIncludingDeleted(@Bind("value") String value);
 
   class OwnerRowMapper implements RowMapper<Owner> {
     @Override
@@ -37,6 +48,7 @@ public interface OwnerDao {
       return Owner.builder()
           .value(rs.getString("value"))
           .identifier(new Identifier(rs.getObject("uuid", UUID.class)))
+          .deleted(rs.getBoolean("deleted"))
           .build();
     }
   }

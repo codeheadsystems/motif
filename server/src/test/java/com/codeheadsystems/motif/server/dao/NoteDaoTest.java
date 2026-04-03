@@ -66,7 +66,7 @@ class NoteDaoTest {
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
     noteDao = jdbi.onDemand(NoteDao.class);
-    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
+    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value(), false);
     storeSubject(SUBJECT);
     event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z")))
@@ -393,7 +393,7 @@ class NoteDaoTest {
   @Test
   void notesAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.upsert(other.identifier().uuid(), other.value());
+    ownerDao.upsert(other.identifier().uuid(), other.value(), false);
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
     storeSubject(otherSubject);
 

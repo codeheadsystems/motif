@@ -47,6 +47,9 @@ public interface EventDao {
   @SqlUpdate("DELETE FROM events WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
+  @SqlUpdate("DELETE FROM events WHERE owner_uuid = :ownerUuid")
+  int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
+
   @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
       + "AND e.subject_uuid = :subjectUuid ORDER BY e.timestamp "
       + "LIMIT :limit OFFSET :offset")

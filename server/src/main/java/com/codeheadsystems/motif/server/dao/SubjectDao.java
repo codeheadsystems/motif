@@ -57,6 +57,9 @@ public interface SubjectDao {
   @SqlQuery(SELECT + " WHERE s.value = :value")
   List<Subject> findByValue(@Bind("value") String value);
 
+  @SqlUpdate("DELETE FROM subjects WHERE owner_uuid = :ownerUuid")
+  int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
+
   class SubjectRowMapper implements RowMapper<Subject> {
     @Override
     public Subject map(ResultSet rs, StatementContext ctx) throws SQLException {

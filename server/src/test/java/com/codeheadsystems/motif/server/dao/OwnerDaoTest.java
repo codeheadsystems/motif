@@ -41,6 +41,8 @@ class OwnerDaoTest {
   @BeforeEach
   void setUp() {
     jdbi.useHandle(handle -> {
+      handle.execute("DELETE FROM tags");
+      handle.execute("DELETE FROM notes");
       handle.execute("DELETE FROM events");
       handle.execute("DELETE FROM subjects");
       handle.execute("DELETE FROM owners");
@@ -51,13 +53,13 @@ class OwnerDaoTest {
   @Test
   void upsertAndFindByIdentifier() {
     Owner owner = new Owner("TEST-OWNER");
-    dao.upsert(owner.identifier().uuid(), owner.value());
+    dao.upsert(owner.identifier().uuid(), owner.value(), false);
 
     Optional<Owner> result = dao.findByIdentifier(owner.identifier().uuid());
 
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("TEST-OWNER");
-    assertThat(result.get().identifier().uuid()).isEqualTo(owner.identifier().uuid());
+    assertThat(result.get().deleted()).isFalse();
   }
 
   @Test
@@ -68,23 +70,58 @@ class OwnerDaoTest {
   @Test
   void upsertUpdatesExistingOwner() {
     Owner original = new Owner("ORIGINAL");
-    dao.upsert(original.identifier().uuid(), original.value());
+    dao.upsert(original.identifier().uuid(), original.value(), false);
 
-    Owner updated = new Owner("UPDATED", original.identifier());
-    dao.upsert(updated.identifier().uuid(), updated.value());
+    Owner updated = new Owner("UPDATED", original.identifier(), false);
+    dao.upsert(updated.identifier().uuid(), updated.value(), false);
 
     Optional<Owner> result = dao.findByIdentifier(original.identifier().uuid());
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("UPDATED");
   }
 
-  @Test
-  void deleteReturnsOneWhenOwnerExists() {
-    Owner owner = new Owner("TO-DELETE");
-    dao.upsert(owner.identifier().uuid(), owner.value());
+  // --- soft delete ---
 
-    assertThat(dao.deleteByIdentifier(owner.identifier().uuid())).isEqualTo(1);
+  @Test
+  void softDeleteSetsDeletedFlag() {
+    Owner owner = new Owner("TO-DELETE");
+    dao.upsert(owner.identifier().uuid(), owner.value(), false);
+
+    assertThat(dao.softDelete(owner.identifier().uuid())).isEqualTo(1);
+
     assertThat(dao.findByIdentifier(owner.identifier().uuid())).isEmpty();
+
+    Optional<Owner> result = dao.findByIdentifierIncludingDeleted(owner.identifier().uuid());
+    assertThat(result).isPresent();
+    assertThat(result.get().deleted()).isTrue();
+  }
+
+  @Test
+  void softDeleteReturnsZeroWhenAlreadyDeleted() {
+    Owner owner = new Owner("TO-DELETE");
+    dao.upsert(owner.identifier().uuid(), owner.value(), false);
+
+    dao.softDelete(owner.identifier().uuid());
+    assertThat(dao.softDelete(owner.identifier().uuid())).isEqualTo(0);
+  }
+
+  @Test
+  void softDeleteReturnsZeroWhenNotFound() {
+    assertThat(dao.softDelete(new Identifier().uuid())).isEqualTo(0);
+  }
+
+  // --- hard delete ---
+
+  @Test
+  void deleteByIdentifierOnlySoftDeletedOwner() {
+    Owner owner = new Owner("TO-DELETE");
+    dao.upsert(owner.identifier().uuid(), owner.value(), false);
+
+    assertThat(dao.deleteByIdentifier(owner.identifier().uuid())).isEqualTo(0);
+
+    dao.softDelete(owner.identifier().uuid());
+    assertThat(dao.deleteByIdentifier(owner.identifier().uuid())).isEqualTo(1);
+    assertThat(dao.findByIdentifierIncludingDeleted(owner.identifier().uuid())).isEmpty();
   }
 
   @Test
@@ -92,15 +129,27 @@ class OwnerDaoTest {
     assertThat(dao.deleteByIdentifier(new Identifier().uuid())).isEqualTo(0);
   }
 
+  // --- findByValue ---
+
   @Test
   void findByValueReturnsMatch() {
     Owner owner = new Owner("FINDABLE");
-    dao.upsert(owner.identifier().uuid(), owner.value());
+    dao.upsert(owner.identifier().uuid(), owner.value(), false);
 
     Optional<Owner> result = dao.findByValue("FINDABLE");
 
     assertThat(result).isPresent();
     assertThat(result.get().identifier().uuid()).isEqualTo(owner.identifier().uuid());
+  }
+
+  @Test
+  void findByValueExcludesSoftDeleted() {
+    Owner owner = new Owner("FINDABLE");
+    dao.upsert(owner.identifier().uuid(), owner.value(), false);
+    dao.softDelete(owner.identifier().uuid());
+
+    assertThat(dao.findByValue("FINDABLE")).isEmpty();
+    assertThat(dao.findByValueIncludingDeleted("FINDABLE")).isPresent();
   }
 
   @Test

@@ -1,13 +1,23 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.codeheadsystems.motif.server.dao.EventDao;
+import com.codeheadsystems.motif.server.dao.NoteDao;
 import com.codeheadsystems.motif.server.dao.OwnerDao;
+import com.codeheadsystems.motif.server.dao.SubjectDao;
+import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.HandleCallback;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,13 +30,33 @@ class OwnerManagerTest {
   private static final Owner OWNER = new Owner("TEST-OWNER");
 
   @Mock
+  private Jdbi jdbi;
+  @Mock
+  private Handle handle;
+  @Mock
   private OwnerDao ownerDao;
+  @Mock
+  private TagsDao tagsDao;
+  @Mock
+  private NoteDao noteDao;
+  @Mock
+  private EventDao eventDao;
+  @Mock
+  private SubjectDao subjectDao;
 
   private OwnerManager ownerManager;
 
+  @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
-    ownerManager = new OwnerManager(ownerDao);
+    lenient().doAnswer(invocation -> invocation.getArgument(0, HandleCallback.class).withHandle(handle))
+        .when(jdbi).inTransaction(any(HandleCallback.class));
+    lenient().when(handle.attach(OwnerDao.class)).thenReturn(ownerDao);
+    lenient().when(handle.attach(TagsDao.class)).thenReturn(tagsDao);
+    lenient().when(handle.attach(NoteDao.class)).thenReturn(noteDao);
+    lenient().when(handle.attach(EventDao.class)).thenReturn(eventDao);
+    lenient().when(handle.attach(SubjectDao.class)).thenReturn(subjectDao);
+    ownerManager = new OwnerManager(jdbi, ownerDao);
   }
 
   // --- store ---
@@ -35,7 +65,7 @@ class OwnerManagerTest {
   void storeCallsUpsertWithCorrectArgs() {
     ownerManager.store(OWNER);
 
-    verify(ownerDao).upsert(OWNER.identifier().uuid(), OWNER.value());
+    verify(ownerDao).upsert(OWNER.identifier().uuid(), OWNER.value(), false);
   }
 
   // --- get ---
@@ -58,20 +88,24 @@ class OwnerManagerTest {
     assertThat(ownerManager.get(unknown)).isEmpty();
   }
 
-  // --- delete ---
-
   @Test
-  void deleteReturnsTrueWhenRowDeleted() {
-    when(ownerDao.deleteByIdentifier(OWNER.identifier().uuid())).thenReturn(1);
+  void getWithIncludeSoftDeletedTrue() {
+    when(ownerDao.findByIdentifierIncludingDeleted(OWNER.identifier().uuid()))
+        .thenReturn(Optional.of(OWNER));
 
-    assertThat(ownerManager.delete(OWNER.identifier())).isTrue();
+    Optional<Owner> result = ownerManager.get(OWNER.identifier(), true);
+
+    assertThat(result).contains(OWNER);
   }
 
   @Test
-  void deleteReturnsFalseWhenNoRowDeleted() {
-    when(ownerDao.deleteByIdentifier(OWNER.identifier().uuid())).thenReturn(0);
+  void getWithIncludeSoftDeletedFalseDelegatesToDefault() {
+    when(ownerDao.findByIdentifier(OWNER.identifier().uuid()))
+        .thenReturn(Optional.of(OWNER));
 
-    assertThat(ownerManager.delete(OWNER.identifier())).isFalse();
+    Optional<Owner> result = ownerManager.get(OWNER.identifier(), false);
+
+    assertThat(result).contains(OWNER);
   }
 
   // --- find ---
@@ -90,5 +124,62 @@ class OwnerManagerTest {
     when(ownerDao.findByValue("NONEXISTENT")).thenReturn(Optional.empty());
 
     assertThat(ownerManager.find("nonexistent")).isEmpty();
+  }
+
+  @Test
+  void findWithIncludeSoftDeletedTrue() {
+    when(ownerDao.findByValueIncludingDeleted("FINDABLE")).thenReturn(Optional.of(OWNER));
+
+    Optional<Owner> result = ownerManager.find("findable", true);
+
+    assertThat(result).contains(OWNER);
+  }
+
+  @Test
+  void findWithIncludeSoftDeletedFalseDelegatesToDefault() {
+    when(ownerDao.findByValue("FINDABLE")).thenReturn(Optional.of(OWNER));
+
+    Optional<Owner> result = ownerManager.find("findable", false);
+
+    assertThat(result).contains(OWNER);
+  }
+
+  // --- softDelete ---
+
+  @Test
+  void softDeleteReturnsTrueWhenRowUpdated() {
+    when(ownerDao.softDelete(OWNER.identifier().uuid())).thenReturn(1);
+
+    assertThat(ownerManager.softDelete(OWNER.identifier())).isTrue();
+  }
+
+  @Test
+  void softDeleteReturnsFalseWhenNoRowUpdated() {
+    when(ownerDao.softDelete(OWNER.identifier().uuid())).thenReturn(0);
+
+    assertThat(ownerManager.softDelete(OWNER.identifier())).isFalse();
+  }
+
+  // --- hardDelete ---
+
+  @Test
+  void hardDeleteCascadesAndDeletesOwner() {
+    when(ownerDao.deleteByIdentifier(OWNER.identifier().uuid())).thenReturn(1);
+
+    assertThat(ownerManager.hardDelete(OWNER.identifier())).isTrue();
+
+    verify(tagsDao).deleteTagsForOwnerNotes(OWNER.identifier().uuid());
+    verify(tagsDao).deleteTagsForOwnerEvents(OWNER.identifier().uuid());
+    verify(noteDao).deleteByOwner(OWNER.identifier().uuid());
+    verify(eventDao).deleteByOwner(OWNER.identifier().uuid());
+    verify(subjectDao).deleteByOwner(OWNER.identifier().uuid());
+    verify(ownerDao).deleteByIdentifier(OWNER.identifier().uuid());
+  }
+
+  @Test
+  void hardDeleteReturnsFalseWhenOwnerNotSoftDeleted() {
+    when(ownerDao.deleteByIdentifier(OWNER.identifier().uuid())).thenReturn(0);
+
+    assertThat(ownerManager.hardDelete(OWNER.identifier())).isFalse();
   }
 }

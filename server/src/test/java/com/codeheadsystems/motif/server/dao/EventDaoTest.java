@@ -65,7 +65,7 @@ class EventDaoTest {
   }
 
   private void storeOwner(Owner owner) {
-    ownerDao.upsert(owner.identifier().uuid(), owner.value());
+    ownerDao.upsert(owner.identifier().uuid(), owner.value(), false);
   }
 
   private void storeSubject(Subject subject) {

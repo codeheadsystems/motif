@@ -67,7 +67,7 @@ class OwnerTest {
   void constructorPreservesProvidedIdentifier() {
     Identifier id = new Identifier();
 
-    Owner owner = new Owner("test", id);
+    Owner owner = new Owner("test", id, false);
 
     assertThat(owner.identifier()).isSameAs(id);
   }
@@ -84,7 +84,7 @@ class OwnerTest {
   @Test
   void fromCopiesAllFields() {
     Identifier id = new Identifier();
-    Owner original = new Owner("ORIGINAL", id);
+    Owner original = new Owner("ORIGINAL", id, false);
 
     Owner copy = Owner.from(original).build();
 

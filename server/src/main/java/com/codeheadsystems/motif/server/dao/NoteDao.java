@@ -44,6 +44,9 @@ public interface NoteDao {
   @SqlUpdate("DELETE FROM notes WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
+  @SqlUpdate("DELETE FROM notes WHERE owner_uuid = :ownerUuid")
+  int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
+
   @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
       + "AND n.subject_uuid = :subjectUuid ORDER BY n.timestamp "
       + "LIMIT :limit OFFSET :offset")

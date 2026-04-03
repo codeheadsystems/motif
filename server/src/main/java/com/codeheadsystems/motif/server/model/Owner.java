@@ -9,8 +9,9 @@ import org.jspecify.annotations.Nullable;
  *
  * @param value      The owner value.
  * @param identifier The identifier of the owner.
+ * @param deleted    Whether this owner has been soft-deleted.
  */
-public record Owner(String value, @Nullable Identifier identifier) {
+public record Owner(String value, @Nullable Identifier identifier, boolean deleted) {
 
   public Owner {
     value = Objects.requireNonNull(value, "value cannot be null")
@@ -26,7 +27,7 @@ public record Owner(String value, @Nullable Identifier identifier) {
   }
 
   public Owner(String value) {
-    this(value, null);
+    this(value, null, false);
   }
 
   public static Builder from(Owner owner) {
@@ -40,6 +41,7 @@ public record Owner(String value, @Nullable Identifier identifier) {
   public static class Builder {
     private String value;
     private Identifier identifier;
+    private boolean deleted;
 
     private Builder() {
     }
@@ -49,6 +51,7 @@ public record Owner(String value, @Nullable Identifier identifier) {
       Builder builder = new Builder();
       builder.value = owner.value();
       builder.identifier = owner.identifier();
+      builder.deleted = owner.deleted();
       return builder;
     }
 
@@ -62,8 +65,13 @@ public record Owner(String value, @Nullable Identifier identifier) {
       return this;
     }
 
+    public Builder deleted(boolean deleted) {
+      this.deleted = deleted;
+      return this;
+    }
+
     public Owner build() {
-      return new Owner(value, identifier);
+      return new Owner(value, identifier, deleted);
     }
   }
 }

@@ -21,4 +21,10 @@ public interface TagsDao {
   @SqlUpdate("DELETE FROM tags WHERE uuid = :uuid")
   int deleteAllTags(@Bind("uuid") UUID uuid);
 
+  @SqlUpdate("DELETE FROM tags WHERE uuid IN (SELECT uuid FROM events WHERE owner_uuid = :ownerUuid)")
+  int deleteTagsForOwnerEvents(@Bind("ownerUuid") UUID ownerUuid);
+
+  @SqlUpdate("DELETE FROM tags WHERE uuid IN (SELECT uuid FROM notes WHERE owner_uuid = :ownerUuid)")
+  int deleteTagsForOwnerNotes(@Bind("ownerUuid") UUID ownerUuid);
+
 }

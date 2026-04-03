@@ -75,7 +75,7 @@ class NoteManagerIntegrationTest {
     NoteDao noteDao = jdbi.onDemand(NoteDao.class);
     TagsDao tagsDao = jdbi.onDemand(TagsDao.class);
     TagsManager tagsManager = new TagsManager(tagsDao);
-    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
+    ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value(), false);
     subjectDao.upsert(SUBJECT.identifier().uuid(), SUBJECT.ownerIdentifier().uuid(),
         SUBJECT.category().value(), SUBJECT.value());
     event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event")
@@ -240,7 +240,7 @@ class NoteManagerIntegrationTest {
   @Test
   void notesAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
-    ownerDao.upsert(other.identifier().uuid(), other.value());
+    ownerDao.upsert(other.identifier().uuid(), other.value(), false);
     Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
     subjectDao.upsert(otherSubject.identifier().uuid(), otherSubject.ownerIdentifier().uuid(),
         otherSubject.category().value(), otherSubject.value());
