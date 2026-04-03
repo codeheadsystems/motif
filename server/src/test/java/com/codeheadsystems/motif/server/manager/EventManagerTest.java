@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.EventDao;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Category;
@@ -170,51 +172,55 @@ class EventManagerTest {
 
   @Test
   void findBySubjectHydratesTags() {
-    when(eventDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
+    PageRequest pr = PageRequest.first(10);
+    when(eventDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(EVENT));
     when(tagsManager.tagsFor(EVENT.identifier()))
         .thenReturn(List.of(new Tag("Y")));
 
-    List<Event> result = eventManager.findBySubject(OWNER, SUBJECT);
+    Page<Event> result = eventManager.findBySubject(OWNER, SUBJECT, pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("Y"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("Y"));
+    assertThat(result.hasMore()).isFalse();
   }
 
   // --- findByTimeRange ---
 
   @Test
   void findByTimeRangeHydratesTags() {
+    PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
     when(eventDao.findByOwnerAndTimeRange(
-        OWNER.identifier().uuid(), from.toOffsetDateTime(), to.toOffsetDateTime()))
+        OWNER.identifier().uuid(), from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(EVENT));
     when(tagsManager.tagsFor(EVENT.identifier()))
         .thenReturn(List.of(new Tag("Z")));
 
-    List<Event> result = eventManager.findByTimeRange(OWNER, from, to);
+    Page<Event> result = eventManager.findByTimeRange(OWNER, from, to, pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("Z"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("Z"));
   }
 
   // --- findBySubjectAndTimeRange ---
 
   @Test
   void findBySubjectAndTimeRangeHydratesTags() {
+    PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
     when(eventDao.findByOwnerSubjectAndTimeRange(
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime()))
+        from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(EVENT));
     when(tagsManager.tagsFor(EVENT.identifier()))
         .thenReturn(List.of(new Tag("W")));
 
-    List<Event> result = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to);
+    Page<Event> result = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to, pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("W"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("W"));
   }
 }

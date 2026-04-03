@@ -8,6 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.SubjectDao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Identifier;
@@ -107,13 +109,14 @@ class SubjectManagerTest {
 
   @Test
   void findByCategoryDelegatesToDao() {
-    List<Subject> expected = List.of(SUBJECT);
-    when(subjectDao.findByOwnerAndCategory(OWNER.identifier().uuid(), CATEGORY.value()))
-        .thenReturn(expected);
+    PageRequest pr = PageRequest.first(10);
+    when(subjectDao.findByOwnerAndCategory(OWNER.identifier().uuid(), CATEGORY.value(), 11, 0))
+        .thenReturn(List.of(SUBJECT));
 
-    List<Subject> results = subjectManager.findByCategory(OWNER, CATEGORY);
+    Page<Subject> results = subjectManager.findByCategory(OWNER, CATEGORY, pr);
 
-    assertThat(results).isEqualTo(expected);
+    assertThat(results.items()).containsExactly(SUBJECT);
+    assertThat(results.hasMore()).isFalse();
   }
 
   // --- find by owner, category, and value ---

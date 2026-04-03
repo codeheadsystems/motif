@@ -2,6 +2,8 @@ package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.EventDao;
 import com.codeheadsystems.motif.server.dao.OwnerDao;
 import com.codeheadsystems.motif.server.dao.SubjectDao;
@@ -169,10 +171,10 @@ class EventManagerIntegrationTest {
     eventManager.store(e2);
     eventManager.store(e3);
 
-    List<Event> results = eventManager.findBySubject(OWNER, SUBJECT);
+    Page<Event> results = eventManager.findBySubject(OWNER, SUBJECT, PageRequest.first());
 
-    assertThat(results).hasSize(2);
-    assertThat(results).extracting(Event::value).containsExactly("event 1", "event 2");
+    assertThat(results.items()).hasSize(2);
+    assertThat(results.items()).extracting(Event::value).containsExactly("event 1", "event 2");
   }
 
   // --- findByTimeRange ---
@@ -190,12 +192,13 @@ class EventManagerIntegrationTest {
     eventManager.store(inRange);
     eventManager.store(after);
 
-    List<Event> results = eventManager.findByTimeRange(OWNER,
+    Page<Event> results = eventManager.findByTimeRange(OWNER,
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")),
+        PageRequest.first());
 
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().value()).isEqualTo("in range");
+    assertThat(results.items()).hasSize(1);
+    assertThat(results.items().getFirst().value()).isEqualTo("in range");
   }
 
   // --- findBySubjectAndTimeRange ---
@@ -217,12 +220,13 @@ class EventManagerIntegrationTest {
     eventManager.store(wrongSubject);
     eventManager.store(wrongTime);
 
-    List<Event> results = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT,
+    Page<Event> results = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT,
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")),
+        PageRequest.first());
 
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().value()).isEqualTo("match");
+    assertThat(results.items()).hasSize(1);
+    assertThat(results.items().getFirst().value()).isEqualTo("match");
   }
 
   // --- owner isolation ---

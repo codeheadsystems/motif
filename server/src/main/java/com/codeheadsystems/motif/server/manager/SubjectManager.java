@@ -1,5 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.SubjectDao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Identifier;
@@ -31,8 +33,11 @@ public class SubjectManager {
     return subjectDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
   }
 
-  public List<Subject> findByCategory(Owner owner, Category category) {
-    return subjectDao.findByOwnerAndCategory(owner.identifier().uuid(), category.value());
+  public Page<Subject> findByCategory(Owner owner, Category category, PageRequest pageRequest) {
+    List<Subject> results = subjectDao.findByOwnerAndCategory(
+        owner.identifier().uuid(), category.value(),
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(results, pageRequest);
   }
 
   public Optional<Subject> find(Owner owner, Category category, String value) {

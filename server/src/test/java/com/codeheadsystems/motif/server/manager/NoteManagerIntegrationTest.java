@@ -2,6 +2,8 @@ package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.EventDao;
 import com.codeheadsystems.motif.server.dao.NoteDao;
 import com.codeheadsystems.motif.server.dao.OwnerDao;
@@ -169,9 +171,9 @@ class NoteManagerIntegrationTest {
     noteManager.store(n1);
     noteManager.store(n2);
 
-    List<Note> results = noteManager.findBySubject(OWNER, SUBJECT);
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().value()).isEqualTo("note 1");
+    Page<Note> results = noteManager.findBySubject(OWNER, SUBJECT, PageRequest.first());
+    assertThat(results.items()).hasSize(1);
+    assertThat(results.items().getFirst().value()).isEqualTo("note 1");
   }
 
   // --- findBySubjectAndTimeRange ---
@@ -186,12 +188,13 @@ class NoteManagerIntegrationTest {
     noteManager.store(match);
     noteManager.store(wrongTime);
 
-    List<Note> results = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT,
+    Page<Note> results = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT,
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")),
+        PageRequest.first());
 
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().value()).isEqualTo("match");
+    assertThat(results.items()).hasSize(1);
+    assertThat(results.items().getFirst().value()).isEqualTo("match");
   }
 
   // --- findByEvent ---
@@ -206,9 +209,9 @@ class NoteManagerIntegrationTest {
     noteManager.store(n1);
     noteManager.store(n2);
 
-    List<Note> results = noteManager.findByEvent(OWNER, event.identifier());
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().value()).isEqualTo("for event");
+    Page<Note> results = noteManager.findByEvent(OWNER, event.identifier(), PageRequest.first());
+    assertThat(results.items()).hasSize(1);
+    assertThat(results.items().getFirst().value()).isEqualTo("for event");
   }
 
   // --- findByEventAndTimeRange ---
@@ -223,12 +226,13 @@ class NoteManagerIntegrationTest {
     noteManager.store(match);
     noteManager.store(wrongTime);
 
-    List<Note> results = noteManager.findByEventAndTimeRange(OWNER, event.identifier(),
+    Page<Note> results = noteManager.findByEventAndTimeRange(OWNER, event.identifier(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")));
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")),
+        PageRequest.first());
 
-    assertThat(results).hasSize(1);
-    assertThat(results.getFirst().value()).isEqualTo("match");
+    assertThat(results.items()).hasSize(1);
+    assertThat(results.items().getFirst().value()).isEqualTo("match");
   }
 
   // --- owner isolation ---

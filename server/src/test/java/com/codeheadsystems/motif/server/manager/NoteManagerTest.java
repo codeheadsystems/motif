@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.NoteDao;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Category;
@@ -192,67 +194,71 @@ class NoteManagerTest {
 
   @Test
   void findBySubjectHydratesTags() {
-    when(noteDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
+    PageRequest pr = PageRequest.first(10);
+    when(noteDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(NOTE));
     when(tagsManager.tagsFor(NOTE.identifier()))
         .thenReturn(List.of(new Tag("Y")));
 
-    List<Note> result = noteManager.findBySubject(OWNER, SUBJECT);
+    Page<Note> result = noteManager.findBySubject(OWNER, SUBJECT, pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("Y"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("Y"));
   }
 
   // --- findBySubjectAndTimeRange ---
 
   @Test
   void findBySubjectAndTimeRangeHydratesTags() {
+    PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
     when(noteDao.findByOwnerSubjectAndTimeRange(
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime()))
+        from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(NOTE));
     when(tagsManager.tagsFor(NOTE.identifier()))
         .thenReturn(List.of(new Tag("Z")));
 
-    List<Note> result = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to);
+    Page<Note> result = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to, pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("Z"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("Z"));
   }
 
   // --- findByEvent ---
 
   @Test
   void findByEventHydratesTags() {
-    when(noteDao.findByOwnerAndEvent(OWNER.identifier().uuid(), EVENT.identifier().uuid()))
+    PageRequest pr = PageRequest.first(10);
+    when(noteDao.findByOwnerAndEvent(OWNER.identifier().uuid(), EVENT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(NOTE));
     when(tagsManager.tagsFor(NOTE.identifier()))
         .thenReturn(List.of(new Tag("W")));
 
-    List<Note> result = noteManager.findByEvent(OWNER, EVENT.identifier());
+    Page<Note> result = noteManager.findByEvent(OWNER, EVENT.identifier(), pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("W"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("W"));
   }
 
   // --- findByEventAndTimeRange ---
 
   @Test
   void findByEventAndTimeRangeHydratesTags() {
+    PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
     when(noteDao.findByOwnerEventAndTimeRange(
         OWNER.identifier().uuid(), EVENT.identifier().uuid(),
-        from.toOffsetDateTime(), to.toOffsetDateTime()))
+        from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(NOTE));
     when(tagsManager.tagsFor(NOTE.identifier()))
         .thenReturn(List.of(new Tag("V")));
 
-    List<Note> result = noteManager.findByEventAndTimeRange(OWNER, EVENT.identifier(), from, to);
+    Page<Note> result = noteManager.findByEventAndTimeRange(OWNER, EVENT.identifier(), from, to, pr);
 
-    assertThat(result).hasSize(1);
-    assertThat(result.getFirst().tags()).containsExactly(new Tag("V"));
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().tags()).containsExactly(new Tag("V"));
   }
 }

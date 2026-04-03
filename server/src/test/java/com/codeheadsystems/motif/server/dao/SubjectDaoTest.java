@@ -150,7 +150,7 @@ class SubjectDaoTest {
     storeSubject(s3);
 
     List<Subject> results = subjectDao.findByOwnerAndCategory(
-        OWNER.identifier().uuid(), CATEGORY.value());
+        OWNER.identifier().uuid(), CATEGORY.value(), Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Subject::value)
@@ -160,7 +160,7 @@ class SubjectDaoTest {
   @Test
   void findByOwnerAndCategoryReturnsEmptyWhenNoMatches() {
     assertThat(subjectDao.findByOwnerAndCategory(
-        OWNER.identifier().uuid(), "nonexistent")).isEmpty();
+        OWNER.identifier().uuid(), "nonexistent", Integer.MAX_VALUE, 0)).isEmpty();
   }
 
   // --- findByOwnerCategoryAndValue ---
@@ -214,9 +214,9 @@ class SubjectDaoTest {
     storeSubject(s2);
 
     assertThat(subjectDao.findByOwnerAndCategory(
-        OWNER.identifier().uuid(), CATEGORY.value())).hasSize(1);
+        OWNER.identifier().uuid(), CATEGORY.value(), Integer.MAX_VALUE, 0)).hasSize(1);
     assertThat(subjectDao.findByOwnerAndCategory(
-        other.identifier().uuid(), CATEGORY.value())).hasSize(1);
+        other.identifier().uuid(), CATEGORY.value(), Integer.MAX_VALUE, 0)).hasSize(1);
     assertThat(subjectDao.findByOwnerAndIdentifier(
         OWNER.identifier().uuid(), s1.identifier().uuid())).isPresent();
     assertThat(subjectDao.findByOwnerAndIdentifier(

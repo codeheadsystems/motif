@@ -45,30 +45,42 @@ public interface NoteDao {
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
   @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
-      + "AND n.subject_uuid = :subjectUuid ORDER BY n.timestamp")
+      + "AND n.subject_uuid = :subjectUuid ORDER BY n.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Note> findByOwnerAndSubject(@Bind("ownerUuid") UUID ownerUuid,
-                                    @Bind("subjectUuid") UUID subjectUuid);
+                                    @Bind("subjectUuid") UUID subjectUuid,
+                                    @Bind("limit") int limit,
+                                    @Bind("offset") int offset);
 
   @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
       + "AND n.subject_uuid = :subjectUuid "
-      + "AND n.timestamp >= :from AND n.timestamp <= :to ORDER BY n.timestamp")
+      + "AND n.timestamp >= :from AND n.timestamp <= :to ORDER BY n.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Note> findByOwnerSubjectAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
                                              @Bind("subjectUuid") UUID subjectUuid,
                                              @Bind("from") OffsetDateTime from,
-                                             @Bind("to") OffsetDateTime to);
+                                             @Bind("to") OffsetDateTime to,
+                                             @Bind("limit") int limit,
+                                             @Bind("offset") int offset);
 
   @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
-      + "AND n.event_uuid = :eventUuid ORDER BY n.timestamp")
+      + "AND n.event_uuid = :eventUuid ORDER BY n.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Note> findByOwnerAndEvent(@Bind("ownerUuid") UUID ownerUuid,
-                                  @Bind("eventUuid") UUID eventUuid);
+                                  @Bind("eventUuid") UUID eventUuid,
+                                  @Bind("limit") int limit,
+                                  @Bind("offset") int offset);
 
   @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
       + "AND n.event_uuid = :eventUuid "
-      + "AND n.timestamp >= :from AND n.timestamp <= :to ORDER BY n.timestamp")
+      + "AND n.timestamp >= :from AND n.timestamp <= :to ORDER BY n.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Note> findByOwnerEventAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
                                            @Bind("eventUuid") UUID eventUuid,
                                            @Bind("from") OffsetDateTime from,
-                                           @Bind("to") OffsetDateTime to);
+                                           @Bind("to") OffsetDateTime to,
+                                           @Bind("limit") int limit,
+                                           @Bind("offset") int offset);
 
   class NoteRowMapper implements RowMapper<Note> {
     @Override

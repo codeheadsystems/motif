@@ -2,6 +2,8 @@ package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.OwnerDao;
 import com.codeheadsystems.motif.server.dao.SubjectDao;
 import com.codeheadsystems.motif.server.model.Category;
@@ -126,15 +128,33 @@ class SubjectManagerIntegrationTest {
     subjectManager.store(new Subject(OWNER.identifier(), CATEGORY, "beta"));
     subjectManager.store(new Subject(OWNER.identifier(), other, "gamma"));
 
-    List<Subject> results = subjectManager.findByCategory(OWNER, CATEGORY);
+    Page<Subject> results = subjectManager.findByCategory(OWNER, CATEGORY, PageRequest.first());
 
-    assertThat(results).hasSize(2);
-    assertThat(results).extracting(Subject::value).containsExactly("alpha", "beta");
+    assertThat(results.items()).hasSize(2);
+    assertThat(results.items()).extracting(Subject::value).containsExactly("alpha", "beta");
+    assertThat(results.hasMore()).isFalse();
   }
 
   @Test
   void findByCategoryReturnsEmptyWhenNoMatches() {
-    assertThat(subjectManager.findByCategory(OWNER, new Category("nonexistent"))).isEmpty();
+    assertThat(subjectManager.findByCategory(OWNER, new Category("nonexistent"), PageRequest.first()).isEmpty()).isTrue();
+  }
+
+  @Test
+  void findByCategoryPaginates() {
+    subjectManager.store(new Subject(OWNER.identifier(), CATEGORY, "a"));
+    subjectManager.store(new Subject(OWNER.identifier(), CATEGORY, "b"));
+    subjectManager.store(new Subject(OWNER.identifier(), CATEGORY, "c"));
+
+    Page<Subject> page1 = subjectManager.findByCategory(OWNER, CATEGORY, PageRequest.first(2));
+    assertThat(page1.items()).hasSize(2);
+    assertThat(page1.hasMore()).isTrue();
+    assertThat(page1.nextPageRequest()).isPresent();
+
+    Page<Subject> page2 = subjectManager.findByCategory(OWNER, CATEGORY, page1.nextPageRequest().get());
+    assertThat(page2.items()).hasSize(1);
+    assertThat(page2.hasMore()).isFalse();
+    assertThat(page2.nextPageRequest()).isEmpty();
   }
 
   // --- find by owner, category, and value ---

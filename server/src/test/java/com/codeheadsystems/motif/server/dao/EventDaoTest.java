@@ -174,7 +174,7 @@ class EventDaoTest {
     storeEvent(e3);
 
     List<Event> results = eventDao.findByOwnerAndSubject(
-        OWNER.identifier().uuid(), SUBJECT.identifier().uuid());
+        OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Event::value)
@@ -187,7 +187,7 @@ class EventDaoTest {
     storeSubject(other);
 
     assertThat(eventDao.findByOwnerAndSubject(
-        OWNER.identifier().uuid(), other.identifier().uuid())).isEmpty();
+        OWNER.identifier().uuid(), other.identifier().uuid(), Integer.MAX_VALUE, 0)).isEmpty();
   }
 
   // --- findByOwnerAndTimeRange ---
@@ -215,7 +215,8 @@ class EventDaoTest {
     List<Event> results = eventDao.findByOwnerAndTimeRange(
         OWNER.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Event::value)
@@ -232,7 +233,8 @@ class EventDaoTest {
 
     Timestamp ts = new Timestamp(exact);
     List<Event> results = eventDao.findByOwnerAndTimeRange(
-        OWNER.identifier().uuid(), ts.toOffsetDateTime(), ts.toOffsetDateTime());
+        OWNER.identifier().uuid(), ts.toOffsetDateTime(), ts.toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("exact");
@@ -263,7 +265,8 @@ class EventDaoTest {
         OWNER.identifier().uuid(),
         SUBJECT.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("match");
@@ -285,7 +288,8 @@ class EventDaoTest {
         OWNER.identifier().uuid(),
         SUBJECT.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).extracting(Event::value)
         .containsExactly("first", "second");

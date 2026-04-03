@@ -48,23 +48,32 @@ public interface EventDao {
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
   @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
-      + "AND e.subject_uuid = :subjectUuid ORDER BY e.timestamp")
+      + "AND e.subject_uuid = :subjectUuid ORDER BY e.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Event> findByOwnerAndSubject(@Bind("ownerUuid") UUID ownerUuid,
-                                     @Bind("subjectUuid") UUID subjectUuid);
+                                     @Bind("subjectUuid") UUID subjectUuid,
+                                     @Bind("limit") int limit,
+                                     @Bind("offset") int offset);
 
   @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
-      + "AND e.timestamp >= :from AND e.timestamp <= :to ORDER BY e.timestamp")
+      + "AND e.timestamp >= :from AND e.timestamp <= :to ORDER BY e.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Event> findByOwnerAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
                                        @Bind("from") OffsetDateTime from,
-                                       @Bind("to") OffsetDateTime to);
+                                       @Bind("to") OffsetDateTime to,
+                                       @Bind("limit") int limit,
+                                       @Bind("offset") int offset);
 
   @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
       + "AND e.subject_uuid = :subjectUuid "
-      + "AND e.timestamp >= :from AND e.timestamp <= :to ORDER BY e.timestamp")
+      + "AND e.timestamp >= :from AND e.timestamp <= :to ORDER BY e.timestamp "
+      + "LIMIT :limit OFFSET :offset")
   List<Event> findByOwnerSubjectAndTimeRange(@Bind("ownerUuid") UUID ownerUuid,
                                               @Bind("subjectUuid") UUID subjectUuid,
                                               @Bind("from") OffsetDateTime from,
-                                              @Bind("to") OffsetDateTime to);
+                                              @Bind("to") OffsetDateTime to,
+                                              @Bind("limit") int limit,
+                                              @Bind("offset") int offset);
 
   class EventRowMapper implements RowMapper<Event> {
     @Override

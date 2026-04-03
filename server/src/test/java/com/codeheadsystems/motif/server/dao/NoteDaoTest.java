@@ -211,7 +211,7 @@ class NoteDaoTest {
     storeNote(n3);
 
     List<Note> results = noteDao.findByOwnerAndSubject(
-        OWNER.identifier().uuid(), SUBJECT.identifier().uuid());
+        OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Note::value)
@@ -224,7 +224,7 @@ class NoteDaoTest {
     storeSubject(other);
 
     assertThat(noteDao.findByOwnerAndSubject(
-        OWNER.identifier().uuid(), other.identifier().uuid())).isEmpty();
+        OWNER.identifier().uuid(), other.identifier().uuid(), Integer.MAX_VALUE, 0)).isEmpty();
   }
 
   // --- findByOwnerSubjectAndTimeRange ---
@@ -253,7 +253,8 @@ class NoteDaoTest {
         OWNER.identifier().uuid(),
         SUBJECT.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("match");
@@ -275,7 +276,8 @@ class NoteDaoTest {
         OWNER.identifier().uuid(),
         SUBJECT.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).extracting(Note::value)
         .containsExactly("first", "second");
@@ -308,7 +310,7 @@ class NoteDaoTest {
     storeNote(n3);
 
     List<Note> results = noteDao.findByOwnerAndEvent(
-        OWNER.identifier().uuid(), event.identifier().uuid());
+        OWNER.identifier().uuid(), event.identifier().uuid(), Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(2);
     assertThat(results).extracting(Note::value)
@@ -318,7 +320,7 @@ class NoteDaoTest {
   @Test
   void findByOwnerAndEventReturnsEmptyWhenNoMatches() {
     assertThat(noteDao.findByOwnerAndEvent(
-        OWNER.identifier().uuid(), new Identifier().uuid())).isEmpty();
+        OWNER.identifier().uuid(), new Identifier().uuid(), Integer.MAX_VALUE, 0)).isEmpty();
   }
 
   // --- findByOwnerEventAndTimeRange ---
@@ -341,7 +343,8 @@ class NoteDaoTest {
         OWNER.identifier().uuid(),
         event.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).hasSize(1);
     assertThat(results.getFirst().value()).isEqualTo("match");
@@ -365,7 +368,8 @@ class NoteDaoTest {
         OWNER.identifier().uuid(),
         event.identifier().uuid(),
         new Timestamp(Instant.parse("2026-03-28T00:00:00Z")).toOffsetDateTime(),
-        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime());
+        new Timestamp(Instant.parse("2026-03-28T23:59:59Z")).toOffsetDateTime(),
+        Integer.MAX_VALUE, 0);
 
     assertThat(results).extracting(Note::value)
         .containsExactly("first", "second");

@@ -1,5 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
+import com.codeheadsystems.motif.common.Page;
+import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.dao.EventDao;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Event;
@@ -64,27 +66,36 @@ public class EventManager {
     });
   }
 
-  public List<Event> findBySubject(Owner owner, Subject subject) {
-    return eventDao.findByOwnerAndSubject(owner.identifier().uuid(), subject.identifier().uuid())
+  public Page<Event> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
+    List<Event> results = eventDao.findByOwnerAndSubject(
+        owner.identifier().uuid(), subject.identifier().uuid(),
+        pageRequest.pageSize() + 1, pageRequest.offset())
         .stream().map(this::hydrateTags).toList();
+    return Page.of(results, pageRequest);
   }
 
-  public List<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to) {
-    return eventDao.findByOwnerAndTimeRange(
+  public Page<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to,
+                                      PageRequest pageRequest) {
+    List<Event> results = eventDao.findByOwnerAndTimeRange(
         owner.identifier().uuid(),
         from.toOffsetDateTime(),
-        to.toOffsetDateTime())
+        to.toOffsetDateTime(),
+        pageRequest.pageSize() + 1, pageRequest.offset())
         .stream().map(this::hydrateTags).toList();
+    return Page.of(results, pageRequest);
   }
 
-  public List<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
-                                                Timestamp from, Timestamp to) {
-    return eventDao.findByOwnerSubjectAndTimeRange(
+  public Page<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
+                                                Timestamp from, Timestamp to,
+                                                PageRequest pageRequest) {
+    List<Event> results = eventDao.findByOwnerSubjectAndTimeRange(
         owner.identifier().uuid(),
         subject.identifier().uuid(),
         from.toOffsetDateTime(),
-        to.toOffsetDateTime())
+        to.toOffsetDateTime(),
+        pageRequest.pageSize() + 1, pageRequest.offset())
         .stream().map(this::hydrateTags).toList();
+    return Page.of(results, pageRequest);
   }
 
   private void storeInTransaction(Handle handle, Event event) {

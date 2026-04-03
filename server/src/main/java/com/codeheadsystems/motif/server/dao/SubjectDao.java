@@ -42,9 +42,11 @@ public interface SubjectDao {
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
   @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid AND s.category = :category "
-      + "ORDER BY s.value")
+      + "ORDER BY s.value LIMIT :limit OFFSET :offset")
   List<Subject> findByOwnerAndCategory(@Bind("ownerUuid") UUID ownerUuid,
-                                        @Bind("category") String category);
+                                        @Bind("category") String category,
+                                        @Bind("limit") int limit,
+                                        @Bind("offset") int offset);
 
   @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid "
       + "AND s.category = :category AND s.value = :value")
