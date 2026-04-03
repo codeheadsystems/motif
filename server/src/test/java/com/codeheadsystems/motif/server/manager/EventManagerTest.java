@@ -3,11 +3,14 @@ package com.codeheadsystems.motif.server.manager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.codeheadsystems.motif.server.dao.EventDao;
+import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
@@ -18,6 +21,10 @@ import com.codeheadsystems.motif.server.model.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.HandleCallback;
+import org.jdbi.v3.core.HandleConsumer;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,15 +43,30 @@ class EventManagerTest {
       .timestamp(TIMESTAMP).build();
 
   @Mock
+  private Jdbi jdbi;
+  @Mock
+  private Handle handle;
+  @Mock
   private EventDao eventDao;
+  @Mock
+  private TagsDao tagsDao;
   @Mock
   private TagsManager tagsManager;
 
   private EventManager eventManager;
 
+  @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
-    eventManager = new EventManager(eventDao, tagsManager);
+    lenient().doAnswer(invocation -> {
+      invocation.getArgument(0, HandleConsumer.class).useHandle(handle);
+      return null;
+    }).when(jdbi).useTransaction(any(HandleConsumer.class));
+    lenient().doAnswer(invocation -> invocation.getArgument(0, HandleCallback.class).withHandle(handle))
+        .when(jdbi).inTransaction(any(HandleCallback.class));
+    lenient().when(handle.attach(EventDao.class)).thenReturn(eventDao);
+    lenient().when(handle.attach(TagsDao.class)).thenReturn(tagsDao);
+    eventManager = new EventManager(jdbi, eventDao, tagsManager);
   }
 
   // --- store ---
@@ -59,7 +81,7 @@ class EventManagerTest {
         EVENT.subject().identifier().uuid(),
         EVENT.value(),
         EVENT.timestamp().toOffsetDateTime());
-    verify(tagsManager).syncTags(EVENT.identifier(), EVENT.tags());
+    verify(tagsManager).syncTags(tagsDao, EVENT.identifier(), EVENT.tags());
   }
 
   @Test
@@ -68,7 +90,7 @@ class EventManagerTest {
 
     eventManager.store(withTags);
 
-    verify(tagsManager).syncTags(withTags.identifier(), List.of(new Tag("A"), new Tag("B")));
+    verify(tagsManager).syncTags(tagsDao, withTags.identifier(), List.of(new Tag("A"), new Tag("B")));
   }
 
   // --- get ---
@@ -104,7 +126,7 @@ class EventManagerTest {
         .thenReturn(1);
 
     assertThat(eventManager.delete(OWNER, EVENT.identifier())).isTrue();
-    verify(tagsManager).deleteAllTags(EVENT.identifier());
+    verify(tagsManager).deleteAllTags(tagsDao, EVENT.identifier());
   }
 
   @Test
@@ -132,7 +154,7 @@ class EventManagerTest {
         updated.subject().identifier().uuid(),
         "updated",
         updated.timestamp().toOffsetDateTime());
-    verify(tagsManager).syncTags(eq(updated.identifier()), any());
+    verify(tagsManager).syncTags(eq(tagsDao), eq(updated.identifier()), any());
   }
 
   @Test

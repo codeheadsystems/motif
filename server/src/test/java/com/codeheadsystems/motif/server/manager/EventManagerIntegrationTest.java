@@ -75,7 +75,7 @@ class EventManagerIntegrationTest {
         SUBJECT.ownerIdentifier().uuid(),
         SUBJECT.category().value(),
         SUBJECT.value());
-    eventManager = new EventManager(eventDao, tagsManager);
+    eventManager = new EventManager(jdbi, eventDao, tagsManager);
   }
 
   // --- store and get ---

@@ -57,7 +57,7 @@ class SubjectManagerIntegrationTest {
     ownerDao = jdbi.onDemand(OwnerDao.class);
     SubjectDao subjectDao = jdbi.onDemand(SubjectDao.class);
     ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value());
-    subjectManager = new SubjectManager(subjectDao);
+    subjectManager = new SubjectManager(jdbi, subjectDao);
   }
 
   // --- store ---
@@ -114,24 +114,6 @@ class SubjectManagerIntegrationTest {
     subjectManager.store(subject);
 
     assertThat(subjectManager.getSubject(other, subject.identifier())).isEmpty();
-  }
-
-  // --- getSubject by value ---
-
-  @Test
-  void getSubjectByValue() {
-    Subject subject = new Subject(OWNER.identifier(), CATEGORY, "unique-value");
-    subjectManager.store(subject);
-
-    Optional<Subject> result = subjectManager.getSubject("unique-value");
-
-    assertThat(result).isPresent();
-    assertThat(result.get().value()).isEqualTo("unique-value");
-  }
-
-  @Test
-  void getSubjectByValueReturnsEmptyWhenNotFound() {
-    assertThat(subjectManager.getSubject("nonexistent")).isEmpty();
   }
 
   // --- findByCategory ---

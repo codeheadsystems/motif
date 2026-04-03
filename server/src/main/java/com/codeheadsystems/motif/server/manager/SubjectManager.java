@@ -9,14 +9,17 @@ import java.util.List;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.jdbi.v3.core.Jdbi;
 
 @Singleton
 public class SubjectManager {
 
+  private final Jdbi jdbi;
   private final SubjectDao subjectDao;
 
   @Inject
-  public SubjectManager(final SubjectDao subjectDao) {
+  public SubjectManager(final Jdbi jdbi, final SubjectDao subjectDao) {
+    this.jdbi = jdbi;
     this.subjectDao = subjectDao;
   }
 
@@ -26,11 +29,6 @@ public class SubjectManager {
 
   public Optional<Subject> getSubject(Owner owner, Identifier identifier) {
     return subjectDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
-  }
-
-  public Optional<Subject> getSubject(String subjectValue) {
-    List<Subject> subjects = subjectDao.findByValue(subjectValue);
-    return subjects.isEmpty() ? Optional.empty() : Optional.of(subjects.getFirst());
   }
 
   public List<Subject> findByCategory(Owner owner, Category category) {
@@ -56,11 +54,18 @@ public class SubjectManager {
   }
 
   public boolean update(Subject subject) {
-    Optional<Subject> existing = subjectDao.findByIdentifier(subject.identifier().uuid());
-    if (existing.isEmpty()) {
-      return false;
-    }
-    store(subject);
-    return true;
+    return jdbi.inTransaction(handle -> {
+      SubjectDao txSubjectDao = handle.attach(SubjectDao.class);
+      Optional<Subject> existing = txSubjectDao.findByIdentifier(subject.identifier().uuid());
+      if (existing.isEmpty()) {
+        return false;
+      }
+      txSubjectDao.upsert(
+          subject.identifier().uuid(),
+          subject.ownerIdentifier().uuid(),
+          subject.category().value(),
+          subject.value());
+      return true;
+    });
   }
 }

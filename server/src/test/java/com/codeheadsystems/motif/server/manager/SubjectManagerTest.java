@@ -1,6 +1,9 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -12,6 +15,9 @@ import com.codeheadsystems.motif.server.model.Owner;
 import com.codeheadsystems.motif.server.model.Subject;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.HandleCallback;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,13 +32,21 @@ class SubjectManagerTest {
   private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
 
   @Mock
+  private Jdbi jdbi;
+  @Mock
+  private Handle handle;
+  @Mock
   private SubjectDao subjectDao;
 
   private SubjectManager subjectManager;
 
+  @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
-    subjectManager = new SubjectManager(subjectDao);
+    lenient().doAnswer(invocation -> invocation.getArgument(0, HandleCallback.class).withHandle(handle))
+        .when(jdbi).inTransaction(any(HandleCallback.class));
+    lenient().when(handle.attach(SubjectDao.class)).thenReturn(subjectDao);
+    subjectManager = new SubjectManager(jdbi, subjectDao);
   }
 
   // --- store ---
@@ -87,24 +101,6 @@ class SubjectManagerTest {
         .thenReturn(Optional.empty());
 
     assertThat(subjectManager.getSubject(other, SUBJECT.identifier())).isEmpty();
-  }
-
-  // --- getSubject by value ---
-
-  @Test
-  void getSubjectByValueReturnsFirstMatch() {
-    when(subjectDao.findByValue("test-subject")).thenReturn(List.of(SUBJECT));
-
-    Optional<Subject> result = subjectManager.getSubject("test-subject");
-
-    assertThat(result).contains(SUBJECT);
-  }
-
-  @Test
-  void getSubjectByValueReturnsEmptyWhenNotFound() {
-    when(subjectDao.findByValue("nonexistent")).thenReturn(List.of());
-
-    assertThat(subjectManager.getSubject("nonexistent")).isEmpty();
   }
 
   // --- findByCategory ---

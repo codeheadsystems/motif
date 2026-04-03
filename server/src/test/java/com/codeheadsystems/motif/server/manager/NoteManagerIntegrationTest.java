@@ -81,7 +81,7 @@ class NoteManagerIntegrationTest {
     eventDao.upsert(event.identifier().uuid(), event.ownerIdentifier().uuid(),
         event.subject().identifier().uuid(), event.value(),
         event.timestamp().toOffsetDateTime());
-    noteManager = new NoteManager(noteDao, tagsManager);
+    noteManager = new NoteManager(jdbi, noteDao, tagsManager);
   }
 
   // --- store and get ---

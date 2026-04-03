@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import com.codeheadsystems.motif.server.dao.EventDao;
+import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
@@ -11,27 +12,25 @@ import java.util.List;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.Jdbi;
 
 @Singleton
 public class EventManager {
 
+  private final Jdbi jdbi;
   private final EventDao eventDao;
   private final TagsManager tagsManager;
 
   @Inject
-  public EventManager(final EventDao eventDao, final TagsManager tagsManager) {
+  public EventManager(final Jdbi jdbi, final EventDao eventDao, final TagsManager tagsManager) {
+    this.jdbi = jdbi;
     this.eventDao = eventDao;
     this.tagsManager = tagsManager;
   }
 
   public void store(Event event) {
-    eventDao.upsert(
-        event.identifier().uuid(),
-        event.ownerIdentifier().uuid(),
-        event.subject().identifier().uuid(),
-        event.value(),
-        event.timestamp().toOffsetDateTime());
-    tagsManager.syncTags(event.identifier(), event.tags());
+    jdbi.useTransaction(handle -> storeInTransaction(handle, event));
   }
 
   public Optional<Event> get(Owner owner, Identifier identifier) {
@@ -40,21 +39,29 @@ public class EventManager {
   }
 
   public boolean delete(Owner owner, Identifier identifier) {
-    boolean deleted = eventDao.deleteByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid()) > 0;
-    if (deleted) {
-      tagsManager.deleteAllTags(identifier);
-    }
-    return deleted;
+    return jdbi.inTransaction(handle -> {
+      EventDao txEventDao = handle.attach(EventDao.class);
+      TagsDao txTagsDao = handle.attach(TagsDao.class);
+      boolean deleted = txEventDao.deleteByOwnerAndIdentifier(
+          owner.identifier().uuid(), identifier.uuid()) > 0;
+      if (deleted) {
+        tagsManager.deleteAllTags(txTagsDao, identifier);
+      }
+      return deleted;
+    });
   }
 
   public boolean update(Event event) {
-    Optional<Event> existing = eventDao.findByOwnerAndIdentifier(
-        event.ownerIdentifier().uuid(), event.identifier().uuid());
-    if (existing.isEmpty()) {
-      return false;
-    }
-    store(event);
-    return true;
+    return jdbi.inTransaction(handle -> {
+      EventDao txEventDao = handle.attach(EventDao.class);
+      Optional<Event> existing = txEventDao.findByOwnerAndIdentifier(
+          event.ownerIdentifier().uuid(), event.identifier().uuid());
+      if (existing.isEmpty()) {
+        return false;
+      }
+      storeInTransaction(handle, event);
+      return true;
+    });
   }
 
   public List<Event> findBySubject(Owner owner, Subject subject) {
@@ -78,6 +85,18 @@ public class EventManager {
         from.toOffsetDateTime(),
         to.toOffsetDateTime())
         .stream().map(this::hydrateTags).toList();
+  }
+
+  private void storeInTransaction(Handle handle, Event event) {
+    EventDao txEventDao = handle.attach(EventDao.class);
+    TagsDao txTagsDao = handle.attach(TagsDao.class);
+    txEventDao.upsert(
+        event.identifier().uuid(),
+        event.ownerIdentifier().uuid(),
+        event.subject().identifier().uuid(),
+        event.value(),
+        event.timestamp().toOffsetDateTime());
+    tagsManager.syncTags(txTagsDao, event.identifier(), event.tags());
   }
 
   private Event hydrateTags(Event event) {

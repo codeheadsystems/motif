@@ -3,11 +3,14 @@ package com.codeheadsystems.motif.server.manager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.codeheadsystems.motif.server.dao.NoteDao;
+import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Category;
 import com.codeheadsystems.motif.server.model.Event;
 import com.codeheadsystems.motif.server.model.Identifier;
@@ -19,6 +22,10 @@ import com.codeheadsystems.motif.server.model.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.jdbi.v3.core.Handle;
+import org.jdbi.v3.core.HandleCallback;
+import org.jdbi.v3.core.HandleConsumer;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,15 +46,30 @@ class NoteManagerTest {
       .timestamp(TIMESTAMP).build();
 
   @Mock
+  private Jdbi jdbi;
+  @Mock
+  private Handle handle;
+  @Mock
   private NoteDao noteDao;
+  @Mock
+  private TagsDao tagsDao;
   @Mock
   private TagsManager tagsManager;
 
   private NoteManager noteManager;
 
+  @SuppressWarnings("unchecked")
   @BeforeEach
   void setUp() {
-    noteManager = new NoteManager(noteDao, tagsManager);
+    lenient().doAnswer(invocation -> {
+      invocation.getArgument(0, HandleConsumer.class).useHandle(handle);
+      return null;
+    }).when(jdbi).useTransaction(any(HandleConsumer.class));
+    lenient().doAnswer(invocation -> invocation.getArgument(0, HandleCallback.class).withHandle(handle))
+        .when(jdbi).inTransaction(any(HandleCallback.class));
+    lenient().when(handle.attach(NoteDao.class)).thenReturn(noteDao);
+    lenient().when(handle.attach(TagsDao.class)).thenReturn(tagsDao);
+    noteManager = new NoteManager(jdbi, noteDao, tagsManager);
   }
 
   // --- store ---
@@ -63,7 +85,7 @@ class NoteManagerTest {
         NOTE.eventIdentifier().uuid(),
         NOTE.value(),
         NOTE.timestamp().toOffsetDateTime());
-    verify(tagsManager).syncTags(NOTE.identifier(), NOTE.tags());
+    verify(tagsManager).syncTags(tagsDao, NOTE.identifier(), NOTE.tags());
   }
 
   @Test
@@ -80,7 +102,7 @@ class NoteManagerTest {
         null,
         noEvent.value(),
         noEvent.timestamp().toOffsetDateTime());
-    verify(tagsManager).syncTags(noEvent.identifier(), noEvent.tags());
+    verify(tagsManager).syncTags(tagsDao, noEvent.identifier(), noEvent.tags());
   }
 
   @Test
@@ -89,7 +111,7 @@ class NoteManagerTest {
 
     noteManager.store(withTags);
 
-    verify(tagsManager).syncTags(withTags.identifier(), List.of(new Tag("A"), new Tag("B")));
+    verify(tagsManager).syncTags(tagsDao, withTags.identifier(), List.of(new Tag("A"), new Tag("B")));
   }
 
   // --- get ---
@@ -125,7 +147,7 @@ class NoteManagerTest {
         .thenReturn(1);
 
     assertThat(noteManager.delete(OWNER, NOTE.identifier())).isTrue();
-    verify(tagsManager).deleteAllTags(NOTE.identifier());
+    verify(tagsManager).deleteAllTags(tagsDao, NOTE.identifier());
   }
 
   @Test
@@ -154,7 +176,7 @@ class NoteManagerTest {
         updated.eventIdentifier().uuid(),
         "updated",
         updated.timestamp().toOffsetDateTime());
-    verify(tagsManager).syncTags(eq(updated.identifier()), any());
+    verify(tagsManager).syncTags(eq(tagsDao), eq(updated.identifier()), any());
   }
 
   @Test
