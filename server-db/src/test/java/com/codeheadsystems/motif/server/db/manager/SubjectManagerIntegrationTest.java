@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
+import com.codeheadsystems.motif.server.db.DatabaseTest;
 import com.codeheadsystems.motif.server.db.dao.OwnerDao;
 import com.codeheadsystems.motif.server.db.dao.SubjectDao;
 import com.codeheadsystems.motif.server.db.model.Category;
@@ -12,42 +13,16 @@ import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Owner;
 import com.codeheadsystems.motif.server.db.model.Subject;
 import java.util.Optional;
-import org.flywaydb.core.Flyway;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.sqlobject.SqlObjectPlugin;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
-@Testcontainers
-class SubjectManagerIntegrationTest {
-
-  @Container
-  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
+class SubjectManagerIntegrationTest extends DatabaseTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Category CATEGORY = new Category("test-category");
 
-  private static Jdbi jdbi;
   private SubjectManager subjectManager;
   private OwnerDao ownerDao;
-
-  @BeforeAll
-  static void setupJdbi() {
-    PGSimpleDataSource ds = new PGSimpleDataSource();
-    ds.setUrl(POSTGRES.getJdbcUrl());
-    ds.setUser(POSTGRES.getUsername());
-    ds.setPassword(POSTGRES.getPassword());
-
-    Flyway.configure().dataSource(ds).load().migrate();
-
-    jdbi = Jdbi.create(ds);
-    jdbi.installPlugin(new SqlObjectPlugin());
-  }
 
   @BeforeEach
   void setUp() {

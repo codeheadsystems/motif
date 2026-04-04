@@ -1,6 +1,10 @@
 package com.codeheadsystems.motif.server.dagger;
 
+import com.codeheadsystems.motif.server.resource.EventResource;
 import com.codeheadsystems.motif.server.resource.HelloWorldResource;
+import com.codeheadsystems.motif.server.resource.NoteResource;
+import com.codeheadsystems.motif.server.resource.OwnerResource;
+import com.codeheadsystems.motif.server.resource.SubjectResource;
 import dagger.Component;
 import javax.inject.Singleton;
 
@@ -9,6 +13,14 @@ import javax.inject.Singleton;
 public interface MotifComponent {
 
   HelloWorldResource helloWorldResource();
+
+  OwnerResource ownerResource();
+
+  SubjectResource subjectResource();
+
+  EventResource eventResource();
+
+  NoteResource noteResource();
 
   @Component.Builder
   interface Builder {

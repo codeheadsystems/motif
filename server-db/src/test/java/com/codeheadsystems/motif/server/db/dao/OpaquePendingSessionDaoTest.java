@@ -2,40 +2,17 @@ package com.codeheadsystems.motif.server.db.dao;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.codeheadsystems.motif.server.db.DatabaseTest;
 import com.codeheadsystems.motif.server.db.model.OpaquePendingSessionRecord;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
-import org.flywaydb.core.Flyway;
-import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.sqlobject.SqlObjectPlugin;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.postgresql.ds.PGSimpleDataSource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
 
-@Testcontainers
-class OpaquePendingSessionDaoTest {
+class OpaquePendingSessionDaoTest extends DatabaseTest {
 
-  @Container
-  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
-
-  private static Jdbi jdbi;
   private OpaquePendingSessionDao dao;
-
-  @BeforeAll
-  static void setupJdbi() {
-    PGSimpleDataSource ds = new PGSimpleDataSource();
-    ds.setUrl(POSTGRES.getJdbcUrl());
-    ds.setUser(POSTGRES.getUsername());
-    ds.setPassword(POSTGRES.getPassword());
-    Flyway.configure().dataSource(ds).load().migrate();
-    jdbi = Jdbi.create(ds);
-    jdbi.installPlugin(new SqlObjectPlugin());
-  }
 
   @BeforeEach
   void setUp() {

@@ -1,0 +1,101 @@
+package com.codeheadsystems.motif.server.resource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
+import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
+import com.codeheadsystems.motif.server.db.manager.EventManager;
+import com.codeheadsystems.motif.server.db.manager.OwnerManager;
+import com.codeheadsystems.motif.server.db.manager.SubjectManager;
+import com.codeheadsystems.motif.server.db.model.Category;
+import com.codeheadsystems.motif.server.db.model.Event;
+import com.codeheadsystems.motif.server.db.model.Identifier;
+import com.codeheadsystems.motif.server.db.model.Owner;
+import com.codeheadsystems.motif.server.db.model.Subject;
+import jakarta.ws.rs.core.Response;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class EventResourceTest {
+
+  private static final Owner OWNER = new Owner("ALICE");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), new Category("test"), "sub-1");
+  private static final HofmannPrincipal PRINCIPAL = new HofmannPrincipal("ALICE", "jti-1");
+
+  @Mock
+  private EventManager eventManager;
+  @Mock
+  private SubjectManager subjectManager;
+  @Mock
+  private OwnerManager ownerManager;
+
+  private EventResource resource;
+
+  @BeforeEach
+  void setUp() {
+    when(ownerManager.find("ALICE")).thenReturn(Optional.of(OWNER));
+    resource = new EventResource(eventManager, subjectManager, ownerManager);
+  }
+
+  @Test
+  void getReturnsEvent() {
+    Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event").build();
+    when(eventManager.get(eq(OWNER), any(Identifier.class)))
+        .thenReturn(Optional.of(event));
+
+    Response response = resource.get(PRINCIPAL, event.identifier().uuid());
+
+    assertThat(response.getStatus()).isEqualTo(200);
+  }
+
+  @Test
+  void getReturns404WhenNotFound() {
+    when(eventManager.get(eq(OWNER), any(Identifier.class)))
+        .thenReturn(Optional.empty());
+
+    Response response = resource.get(PRINCIPAL, UUID.randomUUID());
+
+    assertThat(response.getStatus()).isEqualTo(404);
+  }
+
+  @Test
+  void createReturns201() {
+    when(subjectManager.getSubject(eq(OWNER), any(Identifier.class)))
+        .thenReturn(Optional.of(SUBJECT));
+
+    Response response = resource.create(PRINCIPAL,
+        Map.of("subjectId", SUBJECT.identifier().uuid().toString(),
+            "value", "new-event",
+            "tags", List.of("TAG1")));
+
+    assertThat(response.getStatus()).isEqualTo(201);
+  }
+
+  @Test
+  void deleteReturns204() {
+    when(eventManager.delete(eq(OWNER), any(Identifier.class))).thenReturn(true);
+
+    Response response = resource.delete(PRINCIPAL, UUID.randomUUID());
+
+    assertThat(response.getStatus()).isEqualTo(204);
+  }
+
+  @Test
+  void deleteReturns404WhenNotFound() {
+    when(eventManager.delete(eq(OWNER), any(Identifier.class))).thenReturn(false);
+
+    Response response = resource.delete(PRINCIPAL, UUID.randomUUID());
+
+    assertThat(response.getStatus()).isEqualTo(404);
+  }
+}

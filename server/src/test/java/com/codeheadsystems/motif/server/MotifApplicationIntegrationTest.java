@@ -26,7 +26,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 class MotifApplicationIntegrationTest {
 
   @Container
-  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:16-alpine");
+  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:latest");
 
   private static DropwizardTestSupport<MotifConfiguration> SUPPORT;
   private static Client client;

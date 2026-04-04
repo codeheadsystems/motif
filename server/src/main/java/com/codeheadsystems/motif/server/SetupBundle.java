@@ -12,6 +12,7 @@ import io.dropwizard.core.ConfiguredBundle;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
 import java.util.List;
+import java.util.Objects;
 import javax.sql.DataSource;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
@@ -39,6 +40,7 @@ public class SetupBundle implements ConfiguredBundle<MotifConfiguration> {
   private final JdbiCredentialStore credentialStore;
   private final JdbiSessionStore sessionStore;
   private final JdbiPendingSessionStore pendingSessionStore;
+  private Jdbi jdbi;
 
   public SetupBundle(JdbiCredentialStore credentialStore,
                      JdbiSessionStore sessionStore,
@@ -57,7 +59,7 @@ public class SetupBundle implements ConfiguredBundle<MotifConfiguration> {
   public void run(MotifConfiguration configuration, Environment environment) {
     DataSource dataSource = buildDataSource(configuration);
 
-    Jdbi jdbi = Jdbi.create(dataSource);
+    this.jdbi = Jdbi.create(dataSource);
     jdbi.installPlugin(new SqlObjectPlugin());
 
     // Initialize stores with DAOs
@@ -98,6 +100,13 @@ public class SetupBundle implements ConfiguredBundle<MotifConfiguration> {
     configDao.findByKey("hofmann.context")
         .map(ConfigurationValue::value)
         .ifPresent(configuration::setContext);
+  }
+
+  /**
+   * Returns the JDBI instance created during run(). Available after SetupBundle.run() completes.
+   */
+  public Jdbi getJdbi() {
+    return Objects.requireNonNull(jdbi, "SetupBundle has not been run yet");
   }
 
   private DataSource buildDataSource(MotifConfiguration configuration) {

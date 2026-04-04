@@ -1,0 +1,6 @@
+.gradle
+**/build
+!server/build/distributions/server.tar
+webapp/node_modules
+webapp/dist
+.git

@@ -41,6 +41,15 @@ application {
     mainClass = "com.codeheadsystems.motif.server.MotifApplication"
 }
 
+val buildWebapp by tasks.registering(Exec::class) {
+    workingDir = file("../webapp")
+    commandLine("npm", "run", "build")
+}
+
+tasks.named("processResources") {
+    dependsOn(buildWebapp)
+}
+
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }

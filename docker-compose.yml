@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: motif
+      POSTGRES_USER: motif
+      POSTGRES_PASSWORD: motif
+    ports:
+      - "5432:5432"
+    volumes:
+      - motif-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U motif"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  motif-pgdata:
