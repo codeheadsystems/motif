@@ -7,6 +7,7 @@ caffeine = "3.2.3"
 dagger = "2.59.2"
 dropwizard = "5.0.1"
 flyway = "12.3.0"
+hofmann = "1.3.2"
 jdbi3 = "3.52.0"
 jspecify = "1.0.0"
 nimbus-jose-jwt = "10.3"
@@ -32,6 +33,9 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 # Dropwizard
 dropwizard-core = { module = "io.dropwizard:dropwizard-core", version.ref = "dropwizard" }
 dropwizard-testing = { module = "io.dropwizard:dropwizard-testing", version.ref = "dropwizard" }
+
+# Hofmann (OPAQUE authentication)
+hofmann-dropwizard = { module = "com.codeheadsystems:hofmann-dropwizard", version.ref = "hofmann" }
 
 # Dependency Injection
 dagger = { module = "com.google.dagger:dagger", version.ref = "dagger" }

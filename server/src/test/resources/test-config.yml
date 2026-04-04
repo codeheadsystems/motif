@@ -5,3 +5,13 @@ server:
   adminConnectors:
     - type: http
       port: 0
+
+# Database URL, user, password are overridden by ConfigOverride in tests
+databaseUrl: jdbc:postgresql://localhost:5432/test
+databaseUser: test
+databasePassword: test
+
+# OPAQUE config — keys left empty so HofmannBundle generates random ones (dev mode)
+context: motif-test-v1
+allowIdentityKsf: true
+argon2MemoryKib: 0
