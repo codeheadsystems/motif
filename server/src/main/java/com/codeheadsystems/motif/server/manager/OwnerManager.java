@@ -1,9 +1,6 @@
 package com.codeheadsystems.motif.server.manager;
 
-import com.codeheadsystems.motif.server.dao.EventDao;
-import com.codeheadsystems.motif.server.dao.NoteDao;
 import com.codeheadsystems.motif.server.dao.OwnerDao;
-import com.codeheadsystems.motif.server.dao.SubjectDao;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
@@ -59,15 +56,11 @@ public class OwnerManager {
     return jdbi.inTransaction(handle -> {
       OwnerDao txOwnerDao = handle.attach(OwnerDao.class);
       TagsDao txTagsDao = handle.attach(TagsDao.class);
-      NoteDao txNoteDao = handle.attach(NoteDao.class);
-      EventDao txEventDao = handle.attach(EventDao.class);
-      SubjectDao txSubjectDao = handle.attach(SubjectDao.class);
 
+      // Tags have no FK to entities, so they won't cascade — clean them up first.
       txTagsDao.deleteTagsForOwnerNotes(identifier.uuid());
       txTagsDao.deleteTagsForOwnerEvents(identifier.uuid());
-      txNoteDao.deleteByOwner(identifier.uuid());
-      txEventDao.deleteByOwner(identifier.uuid());
-      txSubjectDao.deleteByOwner(identifier.uuid());
+      // DB cascades deletion of notes, events, and subjects via ON DELETE CASCADE.
       return txOwnerDao.deleteByIdentifier(identifier.uuid()) > 0;
     });
   }

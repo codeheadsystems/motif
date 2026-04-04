@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
@@ -122,7 +123,7 @@ class EventManagerIntegrationTest {
     eventManager.store(event);
 
     Event updated = Event.from(event).value("updated").build();
-    assertThat(eventManager.update(updated)).isTrue();
+    eventManager.update(updated);
 
     Optional<Event> result = eventManager.get(OWNER, event.identifier());
     assertThat(result).isPresent();
@@ -130,10 +131,11 @@ class EventManagerIntegrationTest {
   }
 
   @Test
-  void updateReturnsFalseWhenEventDoesNotExist() {
+  void updateThrowsWhenEventDoesNotExist() {
     Event event = Event.builder().owner(OWNER).subject(SUBJECT).value("nonexistent").build();
 
-    assertThat(eventManager.update(event)).isFalse();
+    assertThatThrownBy(() -> eventManager.update(event))
+        .isInstanceOf(NotFoundException.class);
   }
 
   // --- delete ---

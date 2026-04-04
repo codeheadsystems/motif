@@ -1,12 +1,15 @@
 package com.codeheadsystems.motif.server.manager;
 
+import com.codeheadsystems.motif.server.dao.TagEntry;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Tag;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -25,6 +28,17 @@ public class TagsManager {
         .stream()
         .map(Tag::new)
         .toList();
+  }
+
+  public Map<Identifier, List<Tag>> tagsFor(List<Identifier> identifiers) {
+    if (identifiers.isEmpty()) {
+      return Map.of();
+    }
+    UUID[] uuids = identifiers.stream().map(Identifier::uuid).toArray(UUID[]::new);
+    return tagsDao.tagValuesForBatch(uuids).stream()
+        .collect(Collectors.groupingBy(
+            e -> new Identifier(e.uuid()),
+            Collectors.mapping(e -> new Tag(e.tagValue()), Collectors.toList())));
   }
 
   public void addTags(Identifier identifier, List<Tag> tags) {

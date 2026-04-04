@@ -11,6 +11,7 @@ import com.codeheadsystems.motif.server.model.Subject;
 import com.codeheadsystems.motif.server.model.Tag;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -53,25 +54,23 @@ public class NoteManager {
     });
   }
 
-  public boolean update(Note note) {
-    return jdbi.inTransaction(handle -> {
+  public void update(Note note) {
+    jdbi.useTransaction(handle -> {
       NoteDao txNoteDao = handle.attach(NoteDao.class);
       Optional<Note> existing = txNoteDao.findByOwnerAndIdentifier(
           note.ownerIdentifier().uuid(), note.identifier().uuid());
       if (existing.isEmpty()) {
-        return false;
+        throw new NotFoundException("Note not found: " + note.identifier().uuid());
       }
       storeInTransaction(handle, note);
-      return true;
     });
   }
 
   public Page<Note> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
     List<Note> results = noteDao.findByOwnerAndSubject(
         owner.identifier().uuid(), subject.identifier().uuid(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   public Page<Note> findBySubjectAndTimeRange(Owner owner, Subject subject,
@@ -82,18 +81,16 @@ public class NoteManager {
         subject.identifier().uuid(),
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   public Page<Note> findByEvent(Owner owner, Identifier eventIdentifier,
                                  PageRequest pageRequest) {
     List<Note> results = noteDao.findByOwnerAndEvent(
         owner.identifier().uuid(), eventIdentifier.uuid(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   public Page<Note> findByEventAndTimeRange(Owner owner, Identifier eventIdentifier,
@@ -104,9 +101,8 @@ public class NoteManager {
         eventIdentifier.uuid(),
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   private void storeInTransaction(Handle handle, Note note) {
@@ -125,5 +121,13 @@ public class NoteManager {
   private Note hydrateTags(Note note) {
     List<Tag> tags = tagsManager.tagsFor(note.identifier());
     return Note.from(note).tags(tags).build();
+  }
+
+  private List<Note> hydrateTagsBatch(List<Note> notes) {
+    List<Identifier> ids = notes.stream().map(Note::identifier).toList();
+    Map<Identifier, List<Tag>> tagMap = tagsManager.tagsFor(ids);
+    return notes.stream()
+        .map(n -> Note.from(n).tags(tagMap.getOrDefault(n.identifier(), List.of())).build())
+        .toList();
   }
 }

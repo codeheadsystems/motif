@@ -11,6 +11,7 @@ import com.codeheadsystems.motif.server.model.Subject;
 import com.codeheadsystems.motif.server.model.Tag;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -53,25 +54,23 @@ public class EventManager {
     });
   }
 
-  public boolean update(Event event) {
-    return jdbi.inTransaction(handle -> {
+  public void update(Event event) {
+    jdbi.useTransaction(handle -> {
       EventDao txEventDao = handle.attach(EventDao.class);
       Optional<Event> existing = txEventDao.findByOwnerAndIdentifier(
           event.ownerIdentifier().uuid(), event.identifier().uuid());
       if (existing.isEmpty()) {
-        return false;
+        throw new NotFoundException("Event not found: " + event.identifier().uuid());
       }
       storeInTransaction(handle, event);
-      return true;
     });
   }
 
   public Page<Event> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
     List<Event> results = eventDao.findByOwnerAndSubject(
         owner.identifier().uuid(), subject.identifier().uuid(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   public Page<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to,
@@ -80,9 +79,8 @@ public class EventManager {
         owner.identifier().uuid(),
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   public Page<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
@@ -93,9 +91,8 @@ public class EventManager {
         subject.identifier().uuid(),
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
-        pageRequest.pageSize() + 1, pageRequest.offset())
-        .stream().map(this::hydrateTags).toList();
-    return Page.of(results, pageRequest);
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
   }
 
   private void storeInTransaction(Handle handle, Event event) {
@@ -113,5 +110,13 @@ public class EventManager {
   private Event hydrateTags(Event event) {
     List<Tag> tags = tagsManager.tagsFor(event.identifier());
     return Event.from(event).tags(tags).build();
+  }
+
+  private List<Event> hydrateTagsBatch(List<Event> events) {
+    List<Identifier> ids = events.stream().map(Event::identifier).toList();
+    Map<Identifier, List<Tag>> tagMap = tagsManager.tagsFor(ids);
+    return events.stream()
+        .map(e -> Event.from(e).tags(tagMap.getOrDefault(e.identifier(), List.of())).build())
+        .toList();
   }
 }

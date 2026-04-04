@@ -3,6 +3,7 @@ package com.codeheadsystems.motif.server.dao;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codeheadsystems.motif.server.model.Identifier;
+import java.util.List;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.jdbi.v3.core.Jdbi;
@@ -115,5 +116,34 @@ class TagsDaoTest {
 
     assertThat(dao.tagValuesFor(uuid1)).isEmpty();
     assertThat(dao.tagValuesFor(uuid2)).containsExactly("TAG");
+  }
+
+  // --- batch ---
+
+  @Test
+  void tagValuesForBatchReturnsEntriesForMultipleUuids() {
+    UUID uuid1 = new Identifier().uuid();
+    UUID uuid2 = new Identifier().uuid();
+    UUID uuid3 = new Identifier().uuid();
+
+    dao.insertTag(uuid1, "A");
+    dao.insertTag(uuid1, "B");
+    dao.insertTag(uuid2, "C");
+    // uuid3 has no tags
+
+    List<TagEntry> result = dao.tagValuesForBatch(new UUID[]{uuid1, uuid2, uuid3});
+
+    assertThat(result).hasSize(3);
+    assertThat(result).extracting(TagEntry::uuid)
+        .containsOnly(uuid1, uuid2);
+    assertThat(result).extracting(TagEntry::tagValue)
+        .containsExactlyInAnyOrder("A", "B", "C");
+  }
+
+  @Test
+  void tagValuesForBatchReturnsEmptyForEmptyArray() {
+    List<TagEntry> result = dao.tagValuesForBatch(new UUID[]{});
+
+    assertThat(result).isEmpty();
   }
 }

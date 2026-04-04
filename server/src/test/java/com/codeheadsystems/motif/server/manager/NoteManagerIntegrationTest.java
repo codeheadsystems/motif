@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
@@ -126,7 +127,7 @@ class NoteManagerIntegrationTest {
     noteManager.store(note);
 
     Note updated = Note.from(note).value("updated").build();
-    assertThat(noteManager.update(updated)).isTrue();
+    noteManager.update(updated);
 
     Optional<Note> result = noteManager.get(OWNER, note.identifier());
     assertThat(result).isPresent();
@@ -134,9 +135,11 @@ class NoteManagerIntegrationTest {
   }
 
   @Test
-  void updateReturnsFalseWhenNoteDoesNotExist() {
+  void updateThrowsWhenNoteDoesNotExist() {
     Note note = Note.builder().owner(OWNER).subject(SUBJECT).value("nonexistent").build();
-    assertThat(noteManager.update(note)).isFalse();
+
+    assertThatThrownBy(() -> noteManager.update(note))
+        .isInstanceOf(NotFoundException.class);
   }
 
   // --- delete ---

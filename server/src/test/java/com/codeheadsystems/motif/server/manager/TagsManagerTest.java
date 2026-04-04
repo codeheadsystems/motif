@@ -5,10 +5,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.codeheadsystems.motif.server.dao.TagEntry;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Tag;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -140,6 +142,33 @@ class TagsManagerTest {
 
     tagsManager.syncTags(ID, List.of(new Tag("A"), new Tag("B")));
 
+    verifyNoMoreInteractions(tagsDao);
+  }
+
+  // --- batch tagsFor ---
+
+  @Test
+  void batchTagsForReturnsGroupedTags() {
+    Identifier id1 = new Identifier();
+    Identifier id2 = new Identifier();
+    when(tagsDao.tagValuesForBatch(new java.util.UUID[]{id1.uuid(), id2.uuid()}))
+        .thenReturn(List.of(
+            new TagEntry(id1.uuid(), "A"),
+            new TagEntry(id1.uuid(), "B"),
+            new TagEntry(id2.uuid(), "C")));
+
+    Map<Identifier, List<Tag>> result = tagsManager.tagsFor(List.of(id1, id2));
+
+    assertThat(result).hasSize(2);
+    assertThat(result.get(id1)).containsExactly(new Tag("A"), new Tag("B"));
+    assertThat(result.get(id2)).containsExactly(new Tag("C"));
+  }
+
+  @Test
+  void batchTagsForReturnsEmptyMapForEmptyInput() {
+    Map<Identifier, List<Tag>> result = tagsManager.tagsFor(List.of());
+
+    assertThat(result).isEmpty();
     verifyNoMoreInteractions(tagsDao);
   }
 }

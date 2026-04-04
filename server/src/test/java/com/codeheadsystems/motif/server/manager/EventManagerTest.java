@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -22,6 +23,7 @@ import com.codeheadsystems.motif.server.model.Tag;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.HandleCallback;
@@ -148,7 +150,7 @@ class EventManagerTest {
         .thenReturn(Optional.of(EVENT));
 
     Event updated = Event.from(EVENT).value("updated").build();
-    assertThat(eventManager.update(updated)).isTrue();
+    eventManager.update(updated);
 
     verify(eventDao).upsert(
         updated.identifier().uuid(),
@@ -160,11 +162,12 @@ class EventManagerTest {
   }
 
   @Test
-  void updateReturnsFalseWhenEventDoesNotExist() {
+  void updateThrowsWhenEventDoesNotExist() {
     when(eventDao.findByOwnerAndIdentifier(EVENT.ownerIdentifier().uuid(), EVENT.identifier().uuid()))
         .thenReturn(Optional.empty());
 
-    assertThat(eventManager.update(EVENT)).isFalse();
+    assertThatThrownBy(() -> eventManager.update(EVENT))
+        .isInstanceOf(NotFoundException.class);
     verifyNoInteractions(tagsManager);
   }
 
@@ -175,8 +178,8 @@ class EventManagerTest {
     PageRequest pr = PageRequest.first(10);
     when(eventDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(EVENT));
-    when(tagsManager.tagsFor(EVENT.identifier()))
-        .thenReturn(List.of(new Tag("Y")));
+    when(tagsManager.tagsFor(List.of(EVENT.identifier())))
+        .thenReturn(Map.of(EVENT.identifier(), List.of(new Tag("Y"))));
 
     Page<Event> result = eventManager.findBySubject(OWNER, SUBJECT, pr);
 
@@ -195,8 +198,8 @@ class EventManagerTest {
     when(eventDao.findByOwnerAndTimeRange(
         OWNER.identifier().uuid(), from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(EVENT));
-    when(tagsManager.tagsFor(EVENT.identifier()))
-        .thenReturn(List.of(new Tag("Z")));
+    when(tagsManager.tagsFor(List.of(EVENT.identifier())))
+        .thenReturn(Map.of(EVENT.identifier(), List.of(new Tag("Z"))));
 
     Page<Event> result = eventManager.findByTimeRange(OWNER, from, to, pr);
 
@@ -215,8 +218,8 @@ class EventManagerTest {
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(EVENT));
-    when(tagsManager.tagsFor(EVENT.identifier()))
-        .thenReturn(List.of(new Tag("W")));
+    when(tagsManager.tagsFor(List.of(EVENT.identifier())))
+        .thenReturn(Map.of(EVENT.identifier(), List.of(new Tag("W"))));
 
     Page<Event> result = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to, pr);
 

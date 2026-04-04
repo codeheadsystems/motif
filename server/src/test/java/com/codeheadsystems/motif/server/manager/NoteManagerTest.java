@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -23,6 +24,7 @@ import com.codeheadsystems.motif.server.model.Tag;
 import com.codeheadsystems.motif.server.model.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.HandleCallback;
@@ -169,7 +171,7 @@ class NoteManagerTest {
         .thenReturn(Optional.of(NOTE));
 
     Note updated = Note.from(NOTE).value("updated").build();
-    assertThat(noteManager.update(updated)).isTrue();
+    noteManager.update(updated);
 
     verify(noteDao).upsert(
         updated.identifier().uuid(),
@@ -182,11 +184,12 @@ class NoteManagerTest {
   }
 
   @Test
-  void updateReturnsFalseWhenNoteDoesNotExist() {
+  void updateThrowsWhenNoteDoesNotExist() {
     when(noteDao.findByOwnerAndIdentifier(NOTE.ownerIdentifier().uuid(), NOTE.identifier().uuid()))
         .thenReturn(Optional.empty());
 
-    assertThat(noteManager.update(NOTE)).isFalse();
+    assertThatThrownBy(() -> noteManager.update(NOTE))
+        .isInstanceOf(NotFoundException.class);
     verifyNoInteractions(tagsManager);
   }
 
@@ -197,8 +200,8 @@ class NoteManagerTest {
     PageRequest pr = PageRequest.first(10);
     when(noteDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(NOTE.identifier()))
-        .thenReturn(List.of(new Tag("Y")));
+    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
+        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("Y"))));
 
     Page<Note> result = noteManager.findBySubject(OWNER, SUBJECT, pr);
 
@@ -217,8 +220,8 @@ class NoteManagerTest {
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(NOTE.identifier()))
-        .thenReturn(List.of(new Tag("Z")));
+    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
+        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("Z"))));
 
     Page<Note> result = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to, pr);
 
@@ -233,8 +236,8 @@ class NoteManagerTest {
     PageRequest pr = PageRequest.first(10);
     when(noteDao.findByOwnerAndEvent(OWNER.identifier().uuid(), EVENT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(NOTE.identifier()))
-        .thenReturn(List.of(new Tag("W")));
+    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
+        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("W"))));
 
     Page<Note> result = noteManager.findByEvent(OWNER, EVENT.identifier(), pr);
 
@@ -253,8 +256,8 @@ class NoteManagerTest {
         OWNER.identifier().uuid(), EVENT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(NOTE.identifier()))
-        .thenReturn(List.of(new Tag("V")));
+    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
+        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("V"))));
 
     Page<Note> result = noteManager.findByEventAndTimeRange(OWNER, EVENT.identifier(), from, to, pr);
 

@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.HandleCallback;
+import org.jdbi.v3.core.HandleConsumer;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,10 @@ class SubjectManagerTest {
   void setUp() {
     lenient().doAnswer(invocation -> invocation.getArgument(0, HandleCallback.class).withHandle(handle))
         .when(jdbi).inTransaction(any(HandleCallback.class));
+    lenient().doAnswer(invocation -> {
+      invocation.getArgument(0, HandleConsumer.class).useHandle(handle);
+      return null;
+    }).when(jdbi).useTransaction(any(HandleConsumer.class));
     lenient().when(handle.attach(SubjectDao.class)).thenReturn(subjectDao);
     subjectManager = new SubjectManager(jdbi, subjectDao);
   }
@@ -149,7 +155,7 @@ class SubjectManagerTest {
         .thenReturn(Optional.of(SUBJECT));
 
     Subject updated = Subject.from(SUBJECT).value("updated").build();
-    assertThat(subjectManager.update(updated)).isTrue();
+    subjectManager.update(updated);
 
     verify(subjectDao).upsert(
         updated.identifier().uuid(),
@@ -159,11 +165,12 @@ class SubjectManagerTest {
   }
 
   @Test
-  void updateReturnsFalseWhenSubjectDoesNotExist() {
+  void updateThrowsWhenSubjectDoesNotExist() {
     when(subjectDao.findByIdentifier(SUBJECT.identifier().uuid()))
         .thenReturn(Optional.empty());
 
-    assertThat(subjectManager.update(SUBJECT)).isFalse();
+    assertThatThrownBy(() -> subjectManager.update(SUBJECT))
+        .isInstanceOf(NotFoundException.class);
     verifyNoMoreInteractions(subjectDao);
   }
 

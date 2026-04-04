@@ -7,10 +7,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.codeheadsystems.motif.server.dao.EventDao;
-import com.codeheadsystems.motif.server.dao.NoteDao;
 import com.codeheadsystems.motif.server.dao.OwnerDao;
-import com.codeheadsystems.motif.server.dao.SubjectDao;
 import com.codeheadsystems.motif.server.dao.TagsDao;
 import com.codeheadsystems.motif.server.model.Identifier;
 import com.codeheadsystems.motif.server.model.Owner;
@@ -37,12 +34,6 @@ class OwnerManagerTest {
   private OwnerDao ownerDao;
   @Mock
   private TagsDao tagsDao;
-  @Mock
-  private NoteDao noteDao;
-  @Mock
-  private EventDao eventDao;
-  @Mock
-  private SubjectDao subjectDao;
 
   private OwnerManager ownerManager;
 
@@ -53,9 +44,6 @@ class OwnerManagerTest {
         .when(jdbi).inTransaction(any(HandleCallback.class));
     lenient().when(handle.attach(OwnerDao.class)).thenReturn(ownerDao);
     lenient().when(handle.attach(TagsDao.class)).thenReturn(tagsDao);
-    lenient().when(handle.attach(NoteDao.class)).thenReturn(noteDao);
-    lenient().when(handle.attach(EventDao.class)).thenReturn(eventDao);
-    lenient().when(handle.attach(SubjectDao.class)).thenReturn(subjectDao);
     ownerManager = new OwnerManager(jdbi, ownerDao);
   }
 
@@ -163,16 +151,13 @@ class OwnerManagerTest {
   // --- hardDelete ---
 
   @Test
-  void hardDeleteCascadesAndDeletesOwner() {
+  void hardDeleteCleansTagsAndDeletesOwner() {
     when(ownerDao.deleteByIdentifier(OWNER.identifier().uuid())).thenReturn(1);
 
     assertThat(ownerManager.hardDelete(OWNER.identifier())).isTrue();
 
     verify(tagsDao).deleteTagsForOwnerNotes(OWNER.identifier().uuid());
     verify(tagsDao).deleteTagsForOwnerEvents(OWNER.identifier().uuid());
-    verify(noteDao).deleteByOwner(OWNER.identifier().uuid());
-    verify(eventDao).deleteByOwner(OWNER.identifier().uuid());
-    verify(subjectDao).deleteByOwner(OWNER.identifier().uuid());
     verify(ownerDao).deleteByIdentifier(OWNER.identifier().uuid());
   }
 

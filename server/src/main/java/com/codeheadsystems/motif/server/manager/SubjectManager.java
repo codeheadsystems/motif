@@ -58,19 +58,18 @@ public class SubjectManager {
         subject.identifier().uuid()) > 0;
   }
 
-  public boolean update(Subject subject) {
-    return jdbi.inTransaction(handle -> {
+  public void update(Subject subject) {
+    jdbi.useTransaction(handle -> {
       SubjectDao txSubjectDao = handle.attach(SubjectDao.class);
       Optional<Subject> existing = txSubjectDao.findByIdentifier(subject.identifier().uuid());
       if (existing.isEmpty()) {
-        return false;
+        throw new NotFoundException("Subject not found: " + subject.identifier().uuid());
       }
       txSubjectDao.upsert(
           subject.identifier().uuid(),
           subject.ownerIdentifier().uuid(),
           subject.category().value(),
           subject.value());
-      return true;
     });
   }
 }

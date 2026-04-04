@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.manager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
@@ -183,7 +184,7 @@ class SubjectManagerIntegrationTest {
     subjectManager.store(subject);
 
     Subject updated = Subject.from(subject).value("updated").build();
-    assertThat(subjectManager.update(updated)).isTrue();
+    subjectManager.update(updated);
 
     Optional<Subject> result = subjectManager.getSubject(subject.identifier());
     assertThat(result).isPresent();
@@ -191,10 +192,11 @@ class SubjectManagerIntegrationTest {
   }
 
   @Test
-  void updateReturnsFalseWhenSubjectDoesNotExist() {
+  void updateThrowsWhenSubjectDoesNotExist() {
     Subject subject = new Subject(OWNER.identifier(), CATEGORY, "nonexistent");
 
-    assertThat(subjectManager.update(subject)).isFalse();
+    assertThatThrownBy(() -> subjectManager.update(subject))
+        .isInstanceOf(NotFoundException.class);
   }
 
   // --- delete ---
