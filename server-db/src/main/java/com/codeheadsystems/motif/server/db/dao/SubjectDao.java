@@ -57,6 +57,9 @@ public interface SubjectDao {
   @SqlQuery(SELECT + " WHERE s.value = :value")
   List<Subject> findByValue(@Bind("value") String value);
 
+  @SqlQuery("SELECT DISTINCT category FROM subjects WHERE owner_uuid = :ownerUuid ORDER BY category")
+  List<String> findCategoriesByOwner(@Bind("ownerUuid") UUID ownerUuid);
+
   @SqlUpdate("DELETE FROM subjects WHERE owner_uuid = :ownerUuid")
   int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
 

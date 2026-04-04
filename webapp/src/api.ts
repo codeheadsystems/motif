@@ -57,6 +57,11 @@ export async function getOwner(): Promise<Owner> {
   return res.json();
 }
 
+export async function getCategories(): Promise<{ value: string }[]> {
+  const res = await apiFetch('/api/subjects/categories');
+  return res.json();
+}
+
 export async function getSubjects(category: string, page = 0, size = 50): Promise<Page<Subject>> {
   const res = await apiFetch(`/api/subjects?category=${encodeURIComponent(category)}&page=${page}&size=${size}`);
   return res.json();

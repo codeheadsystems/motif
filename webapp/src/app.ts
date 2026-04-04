@@ -74,7 +74,6 @@ function renderAuthPage(): void {
       </div>
     </div>`;
 
-  // Tab switching
   content.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
       content.querySelectorAll('[data-tab]').forEach(b => b.classList.remove('active'));
@@ -120,7 +119,6 @@ function bindAuthForms(): void {
       const { register } = await import('./auth');
       await register(user, pass);
       msg.innerHTML = '<div class="alert alert-success">Registration successful! You can now log in.</div>';
-      // Switch to login tab
       content.querySelector('[data-tab="login"]')?.dispatchEvent(new Event('click'));
     } catch (err) {
       msg.innerHTML = `<div class="alert alert-danger">Registration failed: ${(err as Error).message}</div>`;
@@ -131,30 +129,39 @@ function bindAuthForms(): void {
 async function renderDashboard(): Promise<void> {
   content.innerHTML = `
     <div class="row g-0">
-      <div class="col-md-3 bg-light sidebar p-3">
-        <h5>Subjects</h5>
-        <div class="mb-3">
+      <div class="col-md-3 bg-light sidebar p-3 border-end">
+        <h6 class="text-uppercase text-muted mb-3">Categories</h6>
+        <form id="form-add-category" class="mb-3">
           <div class="input-group input-group-sm">
-            <input type="text" class="form-control" id="category-input" placeholder="Category" />
-            <button class="btn btn-outline-secondary" id="btn-load-category">Load</button>
+            <input type="text" class="form-control" id="new-category-name" placeholder="New category (e.g. House)" required />
+            <button class="btn btn-outline-primary" type="submit">+</button>
           </div>
-        </div>
-        <div class="mb-3">
-          <div class="input-group input-group-sm">
-            <input type="text" class="form-control" id="new-subject-value" placeholder="New subject" />
-            <button class="btn btn-outline-primary" id="btn-add-subject">Add</button>
-          </div>
-        </div>
-        <div id="subject-list"></div>
+        </form>
+        <div id="category-list"></div>
       </div>
       <div class="col-md-9 p-3">
         <div id="dashboard-welcome">
           <h4>Welcome</h4>
           <p>Credential: <code>${getCredentialId()}</code></p>
-          <p class="text-muted">Select a category and subject from the sidebar to browse events and notes.</p>
+          <p class="text-muted">Create a category in the sidebar, then add subjects to it.</p>
+        </div>
+        <div id="subject-panel" class="d-none">
+          <div class="d-flex align-items-center mb-3">
+            <h5 class="mb-0" id="subject-panel-title"></h5>
+          </div>
+          <form id="form-add-subject" class="mb-3">
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" id="new-subject-value" placeholder="New subject (e.g. Water Heater)" required />
+              <button class="btn btn-outline-primary" type="submit">Add Subject</button>
+            </div>
+          </form>
+          <div id="subject-list"></div>
         </div>
         <div id="entity-detail" class="d-none">
-          <h5 id="detail-title"></h5>
+          <div class="d-flex align-items-center mb-3">
+            <button class="btn btn-outline-secondary btn-sm me-2" id="btn-back-to-subjects">&larr; Back</button>
+            <h5 class="mb-0" id="detail-title"></h5>
+          </div>
           <ul class="nav nav-tabs mb-3">
             <li class="nav-item"><button class="nav-link active" data-detail="events">Events</button></li>
             <li class="nav-item"><button class="nav-link" data-detail="notes">Notes</button></li>
@@ -165,11 +172,10 @@ async function renderDashboard(): Promise<void> {
       </div>
     </div>`;
 
-  // Ensure owner exists
   try {
     await api.getOwner();
   } catch {
-    // Owner creation might fail if server is down
+    // ignore
   }
 
   bindDashboard();
@@ -179,18 +185,29 @@ function bindDashboard(): void {
   let currentCategory = '';
   let currentSubject: api.Subject | null = null;
 
-  document.getElementById('btn-load-category')!.addEventListener('click', async () => {
-    currentCategory = (document.getElementById('category-input') as HTMLInputElement).value;
-    if (!currentCategory) return;
-    await loadSubjects();
+  // Load categories on init
+  loadCategories();
+
+  // Add category form
+  document.getElementById('form-add-category')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('new-category-name') as HTMLInputElement;
+    const name = input.value.trim();
+    if (!name) return;
+    // Creating a subject with the category causes the category to appear.
+    // But we want to just select it first — the category exists implicitly when a subject is created.
+    // So just select it and show the subject panel.
+    input.value = '';
+    currentCategory = name;
+    showSubjectPanel(name);
+    await loadCategories();
   });
 
-  document.getElementById('btn-add-subject')!.addEventListener('click', async () => {
-    const value = (document.getElementById('new-subject-value') as HTMLInputElement).value;
-    if (!value || !currentCategory) return;
-    await api.createSubject(currentCategory, value);
-    (document.getElementById('new-subject-value') as HTMLInputElement).value = '';
-    await loadSubjects();
+  // Back button
+  document.getElementById('btn-back-to-subjects')!.addEventListener('click', () => {
+    document.getElementById('entity-detail')!.classList.add('d-none');
+    document.getElementById('subject-panel')!.classList.remove('d-none');
+    currentSubject = null;
   });
 
   // Detail tab switching
@@ -204,14 +221,74 @@ function bindDashboard(): void {
     });
   });
 
-  async function loadSubjects(): Promise<void> {
+  async function loadCategories(): Promise<void> {
+    const list = document.getElementById('category-list')!;
+    try {
+      const categories = await api.getCategories();
+      if (categories.length === 0) {
+        list.innerHTML = '<p class="text-muted small">No categories yet. Create one above.</p>';
+        return;
+      }
+      list.innerHTML = categories.map(c => `
+        <button class="btn btn-sm w-100 text-start mb-1 ${c.value === currentCategory ? 'btn-primary' : 'btn-outline-secondary'}"
+                data-category="${c.value}">
+          ${c.value}
+        </button>`).join('');
+
+      list.querySelectorAll('[data-category]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cat = (btn as HTMLElement).dataset.category!;
+          currentCategory = cat;
+          showSubjectPanel(cat);
+          // Update active state
+          list.querySelectorAll('[data-category]').forEach(b => {
+            b.classList.toggle('btn-primary', (b as HTMLElement).dataset.category === cat);
+            b.classList.toggle('btn-outline-secondary', (b as HTMLElement).dataset.category !== cat);
+          });
+        });
+      });
+    } catch {
+      list.innerHTML = '<p class="text-danger small">Failed to load categories</p>';
+    }
+  }
+
+  function showSubjectPanel(category: string): void {
+    document.getElementById('dashboard-welcome')!.classList.add('d-none');
+    document.getElementById('entity-detail')!.classList.add('d-none');
+    const panel = document.getElementById('subject-panel')!;
+    panel.classList.remove('d-none');
+    document.getElementById('subject-panel-title')!.textContent = category;
+
+    // Rebind add subject form for this category
+    const form = document.getElementById('form-add-subject')!;
+    const newForm = form.cloneNode(true) as HTMLElement;
+    form.parentNode!.replaceChild(newForm, form);
+    newForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('new-subject-value') as HTMLInputElement;
+      const value = input.value.trim();
+      if (!value) return;
+      await api.createSubject(category, value);
+      input.value = '';
+      await loadSubjects(category);
+      await loadCategories();
+    });
+
+    loadSubjects(category);
+  }
+
+  async function loadSubjects(category: string): Promise<void> {
     const list = document.getElementById('subject-list')!;
     try {
-      const page = await api.getSubjects(currentCategory);
+      const page = await api.getSubjects(category);
+      if (page.items.length === 0) {
+        list.innerHTML = '<p class="text-muted small">No subjects in this category. Add one above.</p>';
+        return;
+      }
       list.innerHTML = page.items.map(s => `
-        <div class="card entity-card mb-1" data-subject-id="${s.identifier.uuid}">
+        <div class="card mb-1 entity-card" data-subject-id="${s.identifier.uuid}">
           <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
-            <small>${s.value}</small>
+            <span>${s.value}</span>
             <button class="btn btn-outline-danger btn-sm delete-subject" data-id="${s.identifier.uuid}">&times;</button>
           </div>
         </div>`).join('');
@@ -229,20 +306,21 @@ function bindDashboard(): void {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
           await api.deleteSubject((btn as HTMLElement).dataset.id!);
-          await loadSubjects();
+          await loadSubjects(category);
+          await loadCategories();
         });
       });
     } catch {
-      list.innerHTML = '<p class="text-danger">Failed to load subjects</p>';
+      list.innerHTML = '<p class="text-danger small">Failed to load subjects</p>';
     }
   }
 
-  async function showSubjectDetail(subject: api.Subject): Promise<void> {
-    document.getElementById('dashboard-welcome')!.classList.add('d-none');
+  function showSubjectDetail(subject: api.Subject): void {
+    document.getElementById('subject-panel')!.classList.add('d-none');
     document.getElementById('entity-detail')!.classList.remove('d-none');
     document.getElementById('detail-title')!.textContent = `${subject.category.value} / ${subject.value}`;
-    await loadEvents(subject);
-    await loadNotes(subject);
+    loadEvents(subject);
+    loadNotes(subject);
   }
 
   async function loadEvents(subject: api.Subject): Promise<void> {
@@ -266,6 +344,7 @@ function bindDashboard(): void {
               </div>
               <button class="btn btn-outline-danger btn-sm delete-event" data-id="${e.identifier.uuid}">&times;</button>
             </div>`).join('')}
+          ${page.items.length === 0 ? '<p class="text-muted small mt-2">No events yet.</p>' : ''}
         </div>`;
 
       document.getElementById('btn-add-event')?.addEventListener('click', async () => {
@@ -305,6 +384,7 @@ function bindDashboard(): void {
               <div>${n.value}</div>
               <button class="btn btn-outline-danger btn-sm delete-note" data-id="${n.identifier.uuid}">&times;</button>
             </div>`).join('')}
+          ${page.items.length === 0 ? '<p class="text-muted small mt-2">No notes yet.</p>' : ''}
         </div>`;
 
       document.getElementById('btn-add-note')?.addEventListener('click', async () => {

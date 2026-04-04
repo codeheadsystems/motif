@@ -21,6 +21,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.inject.Inject;
@@ -38,6 +39,13 @@ public class SubjectResource {
   public SubjectResource(final SubjectManager subjectManager, final OwnerManager ownerManager) {
     this.subjectManager = subjectManager;
     this.ownerManager = ownerManager;
+  }
+
+  @GET
+  @Path("/categories")
+  public List<Category> categories(@Auth HofmannPrincipal principal) {
+    Owner owner = resolveOwner(principal);
+    return subjectManager.findCategories(owner);
   }
 
   @GET

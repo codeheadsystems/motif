@@ -40,6 +40,11 @@ public class SubjectManager {
     return Page.of(results, pageRequest);
   }
 
+  public List<Category> findCategories(Owner owner) {
+    return subjectDao.findCategoriesByOwner(owner.identifier().uuid())
+        .stream().map(Category::new).toList();
+  }
+
   public Optional<Subject> find(Owner owner, Category category, String value) {
     return subjectDao.findByOwnerCategoryAndValue(owner.identifier().uuid(), category.value(), value);
   }
