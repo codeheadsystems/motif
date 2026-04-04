@@ -11,11 +11,8 @@ import com.codeheadsystems.motif.server.store.JdbiSessionStore;
 import io.dropwizard.core.ConfiguredBundle;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
-import java.security.SecureRandom;
-import java.util.HexFormat;
 import java.util.List;
 import javax.sql.DataSource;
-import org.flywaydb.core.Flyway;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.sqlobject.SqlObjectPlugin;
 import org.postgresql.ds.PGSimpleDataSource;
@@ -24,18 +21,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Registered before HofmannBundle to initialize JDBI, stores, and load config from the database.
- * If no OPAQUE keys exist in the database, generates random ones automatically.
+ * <p>
+ * This bundle does NOT run Flyway migrations or generate keys. The database must be
+ * initialized beforehand by running the {@code init-db} command.
  */
 public class SetupBundle implements ConfiguredBundle<MotifConfiguration> {
 
   private static final Logger log = LoggerFactory.getLogger(SetupBundle.class);
-  private static final int KEY_BYTES = 32;
-  private static final String DEFAULT_CONTEXT = "motif-opaque-v1";
-  private static final List<String> HEX_KEYS = List.of(
+  private static final List<String> REQUIRED_KEYS = List.of(
       "hofmann.serverKeySeedHex",
       "hofmann.oprfSeedHex",
       "hofmann.oprfMasterKeyHex",
-      "hofmann.jwtSecretHex"
+      "hofmann.jwtSecretHex",
+      "hofmann.context"
   );
 
   private final JdbiCredentialStore credentialStore;
@@ -59,8 +57,6 @@ public class SetupBundle implements ConfiguredBundle<MotifConfiguration> {
   public void run(MotifConfiguration configuration, Environment environment) {
     DataSource dataSource = buildDataSource(configuration);
 
-    Flyway.configure().dataSource(dataSource).load().migrate();
-
     Jdbi jdbi = Jdbi.create(dataSource);
     jdbi.installPlugin(new SqlObjectPlugin());
 
@@ -69,27 +65,20 @@ public class SetupBundle implements ConfiguredBundle<MotifConfiguration> {
     sessionStore.initialize(jdbi.onDemand(OpaqueSessionDao.class));
     pendingSessionStore.initialize(jdbi.onDemand(OpaquePendingSessionDao.class));
 
-    // Ensure OPAQUE keys exist, generating if needed
+    // Load OPAQUE config from database — fail if keys are missing
     ConfigurationValueDao configDao = jdbi.onDemand(ConfigurationValueDao.class);
-    ensureKeysExist(configDao);
+    verifyRequiredKeys(configDao);
     loadConfigFromDatabase(configuration, configDao);
   }
 
-  private void ensureKeysExist(ConfigurationValueDao configDao) {
-    SecureRandom random = new SecureRandom();
-    HexFormat hex = HexFormat.of();
-
-    for (String key : HEX_KEYS) {
-      if (configDao.findByKey(key).isEmpty()) {
-        byte[] value = new byte[KEY_BYTES];
-        random.nextBytes(value);
-        configDao.upsert(key, hex.formatHex(value));
-        log.warn("Generated missing key: {} — run 'init-db' for production deployments", key);
-      }
-    }
-    if (configDao.findByKey("hofmann.context").isEmpty()) {
-      configDao.upsert("hofmann.context", DEFAULT_CONTEXT);
-      log.warn("Generated missing context: hofmann.context={}", DEFAULT_CONTEXT);
+  private void verifyRequiredKeys(ConfigurationValueDao configDao) {
+    List<String> missing = REQUIRED_KEYS.stream()
+        .filter(key -> configDao.findByKey(key).isEmpty())
+        .toList();
+    if (!missing.isEmpty()) {
+      throw new IllegalStateException(
+          "Missing required OPAQUE configuration keys in database: " + missing
+              + ". Run 'java -jar motif.jar init-db config.yml' to initialize the database.");
     }
   }
 

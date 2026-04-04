@@ -85,3 +85,10 @@ Authorization: Bearer <jwt-token>
 - **common** — Shared utilities (Configuration, PageRequest, etc.)
 
 The OPAQUE stores (credentials, sessions, pending sessions) are backed by PostgreSQL via JDBI, ensuring data survives server restarts.
+
+# BEFORE RELEASING
+
+When this application is nearing completion, the OPAQUE keys need to be in a storage
+system separate from the database. 
+
+**DO NOT RELEASE THIS APPLICATION EVER WITHOUT FIXING THIS!**
