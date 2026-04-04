@@ -5,6 +5,7 @@
 assertj = "3.27.7"
 caffeine = "3.2.3"
 dagger = "2.59.2"
+dropwizard = "5.0.1"
 flyway = "12.3.0"
 jdbi3 = "3.52.0"
 jspecify = "1.0.0"
@@ -28,6 +29,10 @@ testcontainers-core = { module = "org.testcontainers:testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 
+# Dropwizard
+dropwizard-core = { module = "io.dropwizard:dropwizard-core", version.ref = "dropwizard" }
+dropwizard-testing = { module = "io.dropwizard:dropwizard-testing", version.ref = "dropwizard" }
+
 # Dependency Injection
 dagger = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
@@ -44,6 +49,7 @@ postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" 
 
 [bundles]
 core = ["jspecify", "caffeine", "inject", "nimbus-jose-jwt"]
+dropwizard = ["dropwizard-core"]
 di = ["dagger", "dagger-compiler", "jsr305"]
 db = ["flyway-core", "flyway-postgresql", "jdbi3-core", "jdbi3-sqlobject", "jdbi3-postgres", "postgresql"]
 testing = ["assertj", "junit-jupiter", "mockito", "mockito-junit"]
