@@ -1,18 +1,52 @@
-# Motif Server
+# Motif
 
 Dropwizard-based REST server with OPAQUE (RFC 9807) authentication via the [hofmann-elimination](https://github.com/codeheadsystems/hofmann-elimination) library.
 
 ## Prerequisites
 
 - Java 21+
-- PostgreSQL 16+
+- Docker and Docker Compose
 - Node.js 18+ and npm (for building the webapp)
 
-## Quick Start (Local Development)
+## Quick Start with Docker Compose
+
+The fastest way to get Motif running locally:
+
+### 1. Build the project
+
+```bash
+./gradlew build
+```
+
+This compiles all modules, builds the webapp (Vite), bundles static assets into the server JAR, and runs all tests.
+
+### 2. Start the system
+
+```bash
+docker compose up --build
+```
+
+This starts PostgreSQL and the Motif server. On first launch, the entrypoint automatically runs `init-db` to create tables and generate OPAQUE keys, then starts the server.
+
+### 3. Open the webapp
+
+Navigate to `http://localhost:8080/app` to register a user and log in.
+
+### Stopping
+
+```bash
+docker compose down
+```
+
+To also remove the database volume (resets all data):
+
+```bash
+docker compose down -v
+```
+
+## Quick Start (Manual / No Docker)
 
 ### 1. Start PostgreSQL
-
-Using Docker:
 
 ```bash
 docker run -d --name motif-db \
@@ -54,8 +88,6 @@ Setting `argon2MemoryKib: 0` with `allowIdentityKsf: true` disables Argon2 key s
 ```bash
 ./gradlew build
 ```
-
-This compiles all modules, builds the webapp (Vite), bundles static assets into the server JAR, and runs all tests.
 
 ### 4. Initialize the database
 
@@ -119,7 +151,7 @@ here until we add support for external vaults.
 Before starting the server for the first time, run the `init-db` command to generate and store random keys:
 
 ```bash
-java -jar server.jar init-db config.yml
+java -jar server/build/libs/server.jar init-db config.yml
 ```
 
 This will:
@@ -129,12 +161,6 @@ This will:
 4. Skip any keys that already exist (safe to re-run)
 
 **The server will not start if the database has not been initialized.** You will see an error listing the missing configuration keys.
-
-## Running the Server
-
-```bash
-java -jar server.jar server config.yml
-```
 
 ## OPAQUE Authentication Endpoints
 

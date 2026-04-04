@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 const TARGET = process.env['MOTIF_SERVER'] ?? 'http://localhost:8080';
 
 export default defineConfig({
+  base: '/app/',
   build: {
     outDir: resolve(__dirname, '../server/src/main/resources/assets'),
     emptyOutDir: true,
