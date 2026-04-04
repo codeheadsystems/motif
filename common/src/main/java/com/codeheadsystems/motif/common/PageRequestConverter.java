@@ -1,45 +1,73 @@
 package com.codeheadsystems.motif.common;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSSigner;
+import com.nimbusds.jose.JWSVerifier;
+import com.nimbusds.jose.crypto.MACSigner;
+import com.nimbusds.jose.crypto.MACVerifier;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import java.text.ParseException;
+import java.util.function.Supplier;
+import javax.crypto.SecretKey;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
- * Converts {@link PageRequest} to and from a base64-encoded string representation.
+ * Converts {@link PageRequest} to and from a signed JWT string representation.
  */
+@Singleton
 public final class PageRequestConverter {
 
-  private static final String SEPARATOR = ":";
+  private static final String PAGE_NUMBER_CLAIM = "pn";
+  private static final String PAGE_SIZE_CLAIM = "ps";
 
-  private PageRequestConverter() {
+  private final Supplier<SecretKey> keySupplier;
+
+  @Inject
+  public PageRequestConverter(final Supplier<SecretKey> keySupplier) {
+    this.keySupplier = keySupplier;
   }
 
   /**
-   * Encodes a {@link PageRequest} as a base64 string.
+   * Encodes a {@link PageRequest} as a signed JWT string.
    */
-  public static String encode(PageRequest pageRequest) {
-    String raw = pageRequest.pageNumber() + SEPARATOR + pageRequest.pageSize();
-    return Base64.getUrlEncoder().withoutPadding()
-        .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
-  }
-
-  /**
-   * Decodes a base64 string back into a {@link PageRequest}.
-   *
-   * @throws IllegalArgumentException if the token is invalid.
-   */
-  public static PageRequest decode(String token) {
+  public String encode(PageRequest pageRequest) {
     try {
-      String raw = new String(Base64.getUrlDecoder().decode(token), StandardCharsets.UTF_8);
-      String[] parts = raw.split(SEPARATOR, 2);
-      if (parts.length != 2) {
-        throw new IllegalArgumentException("Invalid page token");
+      JWTClaimsSet claims = new JWTClaimsSet.Builder()
+          .claim(PAGE_NUMBER_CLAIM, pageRequest.pageNumber())
+          .claim(PAGE_SIZE_CLAIM, pageRequest.pageSize())
+          .build();
+      SignedJWT signedJWT = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
+      JWSSigner signer = new MACSigner(keySupplier.get());
+      signedJWT.sign(signer);
+      return signedJWT.serialize();
+    } catch (JOSEException e) {
+      throw new IllegalStateException("Failed to sign page token", e);
+    }
+  }
+
+  /**
+   * Decodes a signed JWT string back into a {@link PageRequest}.
+   *
+   * @throws IllegalArgumentException if the token is invalid or the signature does not verify.
+   */
+  public PageRequest decode(String token) {
+    try {
+      SignedJWT signedJWT = SignedJWT.parse(token);
+      JWSVerifier verifier = new MACVerifier(keySupplier.get());
+      if (!signedJWT.verify(verifier)) {
+        throw new IllegalArgumentException("Invalid page token: signature verification failed");
       }
-      int pageNumber = Integer.parseInt(parts[0]);
-      int pageSize = Integer.parseInt(parts[1]);
+      JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
+      int pageNumber = claims.getIntegerClaim(PAGE_NUMBER_CLAIM);
+      int pageSize = claims.getIntegerClaim(PAGE_SIZE_CLAIM);
       return new PageRequest(pageNumber, pageSize);
     } catch (IllegalArgumentException e) {
       throw e;
-    } catch (Exception e) {
+    } catch (ParseException | JOSEException e) {
       throw new IllegalArgumentException("Invalid page token", e);
     }
   }

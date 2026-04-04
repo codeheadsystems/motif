@@ -3,10 +3,12 @@
 
 [versions]
 assertj = "3.27.7"
+caffeine = "3.2.3"
 dagger = "2.59.2"
 flyway = "12.3.0"
 jdbi3 = "3.52.0"
 jspecify = "1.0.0"
+nimbus-jose-jwt = "10.3"
 jsr305 = "3.0.2"
 junit-jupiter = "6.0.3"
 mockito = "5.23.0"
@@ -15,7 +17,9 @@ testcontainers = "2.0.4"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-junit = { module = "org.mockito:mockito-junit-jupiter", version.ref = "mockito" }
@@ -27,6 +31,7 @@ testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgr
 # Dependency Injection
 dagger = { module = "com.google.dagger:dagger", version.ref = "dagger" }
 dagger-compiler = { module = "com.google.dagger:dagger-compiler", version.ref = "dagger" }
+inject = { module = "javax.inject:javax.inject", version = "1" }
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 
 # db
@@ -38,7 +43,7 @@ jdbi3-postgres = { module = "org.jdbi:jdbi3-postgres", version.ref = "jdbi3" }
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 
 [bundles]
-core = ["jspecify"]
+core = ["jspecify", "caffeine", "inject", "nimbus-jose-jwt"]
 di = ["dagger", "dagger-compiler", "jsr305"]
 db = ["flyway-core", "flyway-postgresql", "jdbi3-core", "jdbi3-sqlobject", "jdbi3-postgres", "postgresql"]
 testing = ["assertj", "junit-jupiter", "mockito", "mockito-junit"]
