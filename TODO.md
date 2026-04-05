@@ -41,30 +41,33 @@ Findings from security review conducted 2026-04-05.
   **Fix:** Set `argon2MemoryKib: 16384` (16 MiB), `argon2Iterations: 3`, disable `allowIdentityKsf`.
   16 MiB chosen for mobile compatibility (OPAQUE KSF runs client-side).
 
-- [ ] **Admin port (8081) exposed without authentication**
+- [x] **Admin port (8081) exposed without authentication**
   Dropwizard admin port exposes `/healthcheck`, `/threads`, `/metrics` unauthenticated.
   Thread dumps leak internal class names and Java version.
-  **Fix:** Restrict admin port to localhost/internal network in deployment config, or add auth.
+  **Fix:** Bound admin port to `127.0.0.1` in `docker/config.yml` so it is only accessible from localhost.
 
 ## MEDIUM
 
-- [ ] **No maximum page size validation**
+- [x] **No maximum page size validation**
   `PageRequest` validates `pageSize >= 1` but has no upper bound. A user could request
   `?size=2147483647`, causing OOM or heavy DB load.
   **Files:** `common/.../PageRequest.java`
-  **Fix:** Add upper bound (e.g., 200) in PageRequest constructor.
+  **Fix:** Added `MAX_PAGE_SIZE = 200` upper bound in PageRequest constructor.
 
-- [ ] **Weak frontend password policy**
+- [x] **Weak frontend password policy**
   Registration only checks password is non-empty (`length < 1`). No minimum length or
   complexity requirements.
   **Files:** `webapp/src/app.ts`
-  **Fix:** Enforce minimum 8-character password in frontend and backend.
+  **Fix:** Enforced minimum 8-character password in registration and change password forms.
 
-- [ ] **JWT stored in sessionStorage (XSS-stealable)**
+- [x] **JWT stored in sessionStorage (XSS-stealable)**
   If any XSS vulnerability exists, the token can be stolen via
   `sessionStorage.getItem('motif_jwt')`. HttpOnly cookies would be more secure.
-  **Files:** `webapp/src/auth.ts`
-  **Fix:** Consider migrating to HttpOnly, SameSite cookie-based sessions.
+  **Files:** `webapp/src/auth.ts`, `webapp/src/api.ts`, `server/.../resource/SessionResource.java`,
+  `server/.../CookieAuthFilter.java`
+  **Fix:** Migrated to HttpOnly, SameSite=Strict cookie-based sessions. JWT is no longer stored
+  in sessionStorage. Added `CookieAuthFilter` to bridge cookie to Authorization header,
+  `SessionResource` for cookie set/clear, and rewrote frontend auth to use cookies.
 
 - [ ] **No HTTPS in default configuration**
   `docker/config.yml` uses plain HTTP. JWT tokens transmitted in cleartext.
@@ -72,17 +75,19 @@ Findings from security review conducted 2026-04-05.
 
 ## LOW
 
-- [ ] **No audit logging**
+- [x] **No audit logging**
   No logging of authentication attempts, password changes, or data modifications.
-  **Fix:** Add audit log table and log critical events.
+  **Fix:** Added SLF4J audit loggers (`audit.owner`, `audit.subject`, `audit.event`, `audit.note`)
+  to all resource create/update/delete operations.
 
-- [ ] **No session cleanup job**
+- [x] **No session cleanup job**
   Expired sessions and pending sessions accumulate in the database.
-  **Fix:** Add scheduled cleanup task for expired sessions.
+  **Fix:** Added `SessionCleanupTask` (Dropwizard Managed) that runs every 15 minutes,
+  cleaning expired sessions and pending sessions older than 10 minutes.
 
-- [ ] **Jetty error pages leak server information**
+- [x] **Jetty error pages leak server information**
   Path traversal attempts return detailed Jetty error messages revealing server type.
-  **Fix:** Configure custom error pages in Dropwizard.
+  **Fix:** Configured custom `ErrorHandler` with `showStacks=false` and `showMessageInTitle=false`.
 
 - [ ] **Database credentials in plaintext config**
   `docker/config.yml` has `databasePassword: motif` in cleartext.

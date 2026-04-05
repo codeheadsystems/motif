@@ -1,4 +1,4 @@
-import { isLoggedIn, getCredentialId, logout, changePassword, getToken } from './auth';
+import { isLoggedIn, getCredentialId, logout, changePassword } from './auth';
 import * as api from './api';
 
 declare const bootstrap: { Modal: new (el: Element) => { show(): void; hide(): void } };
@@ -8,32 +8,19 @@ const navUser = document.getElementById('nav-user')!;
 const navUsername = document.getElementById('nav-username')!;
 
 // Logout
-document.getElementById('btn-logout')!.addEventListener('click', () => {
-  logout();
+document.getElementById('btn-logout')!.addEventListener('click', async () => {
+  await logout();
   render();
 });
 
 // Profile modal
 document.getElementById('btn-profile')!.addEventListener('click', () => {
   const credId = getCredentialId() ?? 'Unknown';
-  const token = getToken();
-  let jwtInfo = '';
-  if (token) {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const issuedAt = payload.iat ? new Date(payload.iat * 1000).toLocaleString() : 'N/A';
-      const expiresAt = payload.exp ? new Date(payload.exp * 1000).toLocaleString() : 'N/A';
-      jwtInfo = `
-        <tr><td class="text-muted">Issued</td><td>${issuedAt}</td></tr>
-        <tr><td class="text-muted">Expires</td><td>${expiresAt}</td></tr>
-        <tr><td class="text-muted">Issuer</td><td>${payload.iss ?? 'N/A'}</td></tr>`;
-    } catch { /* ignore */ }
-  }
   document.getElementById('profile-body')!.innerHTML = `
     <table class="table table-sm mb-0">
       <tbody>
         <tr><td class="text-muted">Credential ID</td><td><code>${credId}</code></td></tr>
-        ${jwtInfo}
+        <tr><td class="text-muted">Session</td><td>Active (HttpOnly cookie)</td></tr>
       </tbody>
     </table>`;
   new bootstrap.Modal(document.getElementById('modal-profile')!).show();
@@ -62,8 +49,8 @@ document.getElementById('form-change-password')!.addEventListener('submit', asyn
     msg.innerHTML = '<div class="alert alert-warning py-1 small">New passwords do not match</div>';
     return;
   }
-  if (newPass.length < 1) {
-    msg.innerHTML = '<div class="alert alert-warning py-1 small">New password cannot be empty</div>';
+  if (newPass.length < 8) {
+    msg.innerHTML = '<div class="alert alert-warning py-1 small">New password must be at least 8 characters</div>';
     return;
   }
   msg.innerHTML = '<div class="text-muted small">Verifying current password and changing...</div>';
@@ -130,11 +117,11 @@ function renderAuthPage(): void {
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Password</label>
-                  <input type="password" class="form-control" id="reg-pass" required />
+                  <input type="password" class="form-control" id="reg-pass" required minlength="8" />
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Confirm Password</label>
-                  <input type="password" class="form-control" id="reg-confirm" required />
+                  <input type="password" class="form-control" id="reg-confirm" required minlength="8" />
                 </div>
                 <button type="submit" class="btn btn-success w-100">Register</button>
               </form>
@@ -181,6 +168,10 @@ function bindAuthForms(): void {
     const user = (document.getElementById('reg-user') as HTMLInputElement).value;
     const pass = (document.getElementById('reg-pass') as HTMLInputElement).value;
     const confirm = (document.getElementById('reg-confirm') as HTMLInputElement).value;
+    if (pass.length < 8) {
+      msg.innerHTML = '<div class="alert alert-warning">Password must be at least 8 characters</div>';
+      return;
+    }
     if (pass !== confirm) {
       msg.innerHTML = '<div class="alert alert-warning">Passwords do not match</div>';
       return;

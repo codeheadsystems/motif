@@ -5,6 +5,9 @@ import com.codeheadsystems.motif.server.command.InitDatabaseCommand;
 import com.codeheadsystems.motif.server.dagger.DaggerMotifComponent;
 import com.codeheadsystems.motif.server.dagger.MotifComponent;
 import com.codeheadsystems.motif.server.dagger.MotifModule;
+import com.codeheadsystems.motif.server.resource.SessionResource;
+import com.codeheadsystems.motif.server.db.dao.OpaquePendingSessionDao;
+import com.codeheadsystems.motif.server.db.dao.OpaqueSessionDao;
 import com.codeheadsystems.motif.server.store.JdbiCredentialStore;
 import com.codeheadsystems.motif.server.store.JdbiPendingSessionStore;
 import com.codeheadsystems.motif.server.store.JdbiSessionStore;
@@ -13,6 +16,7 @@ import io.dropwizard.core.Application;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
 import io.dropwizard.servlets.assets.AssetServlet;
+import org.eclipse.jetty.server.handler.ErrorHandler;
 import jakarta.servlet.DispatcherType;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
@@ -54,6 +58,23 @@ public class MotifApplication extends Application<MotifConfiguration> {
     environment.jersey().register(component.subjectResource());
     environment.jersey().register(component.eventResource());
     environment.jersey().register(component.noteResource());
+    environment.jersey().register(new SessionResource());
+
+    // Suppress detailed Jetty error pages to avoid leaking server information
+    ErrorHandler errorHandler = new ErrorHandler();
+    errorHandler.setShowStacks(false);
+    errorHandler.setShowMessageInTitle(false);
+    environment.getApplicationContext().setErrorHandler(errorHandler);
+
+    // Session cleanup task
+    OpaqueSessionDao sessionDao = setupBundle.getJdbi().onDemand(OpaqueSessionDao.class);
+    OpaquePendingSessionDao pendingSessionDao = setupBundle.getJdbi().onDemand(OpaquePendingSessionDao.class);
+    environment.lifecycle().manage(new SessionCleanupTask(sessionDao, pendingSessionDao));
+
+    // Cookie-to-Authorization bridge (must run before HofmannBundle's auth filter)
+    environment.servlets()
+        .addFilter("cookie-auth", new CookieAuthFilter())
+        .addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), false, "/api/*");
 
     // Security headers for all responses (including static assets)
     environment.servlets()

@@ -45,3 +45,9 @@ Event modified = Event.from(event)
 - Always run the full test suite (`./gradlew test`) after any change to ensure nothing is broken.
 - Tests use JUnit Jupiter, AssertJ, and Testcontainers (PostgreSQL 16).
 - DAO and Manager tests use real PostgreSQL via Testcontainers with Flyway migrations.
+
+## Design Principles
+
+- **Correctness over convenience.** Always choose the right behavior for the application, not the easiest implementation. If the correct approach requires more code, more layers, or a harder migration, do it anyway. Quick hacks and shortcuts accumulate into security vulnerabilities and architectural debt.
+- **Security by default.** All data access must be owner-scoped. All user input must be validated server-side. Secrets must not be stored in plaintext or accessible to client code. Prefer HttpOnly cookies over client-accessible token storage. Assume any client-side check can be bypassed.
+- **Validate at system boundaries.** Resource endpoints must validate and reject malformed input with 400 responses, not let exceptions bubble into 500s. Internal code between trusted layers does not need redundant validation.

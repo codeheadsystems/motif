@@ -10,11 +10,15 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 @Path("/api/owner")
 @Produces(MediaType.APPLICATION_JSON)
 public class OwnerResource {
+
+  private static final Logger AUDIT = LoggerFactory.getLogger("audit.owner");
 
   private final OwnerManager ownerManager;
 
@@ -25,6 +29,7 @@ public class OwnerResource {
 
   @GET
   public Owner getOrCreateOwner(@Auth HofmannPrincipal principal) {
+    AUDIT.info("owner.access credentialId={}", principal.credentialIdentifier());
     return resolveOwner(principal);
   }
 
@@ -34,6 +39,7 @@ public class OwnerResource {
         .orElseGet(() -> {
           Owner owner = new Owner(credId);
           ownerManager.store(owner);
+          AUDIT.info("owner.created credentialId={}", credId);
           return owner;
         });
   }

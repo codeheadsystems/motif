@@ -9,6 +9,7 @@ package com.codeheadsystems.motif.common;
 public record PageRequest(int pageNumber, int pageSize) {
 
   public static final int DEFAULT_PAGE_SIZE = 50;
+  public static final int MAX_PAGE_SIZE = 200;
 
   public PageRequest {
     if (pageNumber < 0) {
@@ -16,6 +17,9 @@ public record PageRequest(int pageNumber, int pageSize) {
     }
     if (pageSize < 1) {
       throw new IllegalArgumentException("pageSize must be >= 1");
+    }
+    if (pageSize > MAX_PAGE_SIZE) {
+      throw new IllegalArgumentException("pageSize must be <= " + MAX_PAGE_SIZE);
     }
   }
 

@@ -26,11 +26,15 @@ import java.util.Map;
 import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 @Path("/api/subjects")
 @Produces(MediaType.APPLICATION_JSON)
 public class SubjectResource {
+
+  private static final Logger AUDIT = LoggerFactory.getLogger("audit.subject");
 
   private final SubjectManager subjectManager;
   private final OwnerManager ownerManager;
@@ -74,6 +78,7 @@ public class SubjectResource {
     Owner owner = resolveOwner(principal);
     Subject subject = new Subject(owner.identifier(), new Category(body.get("category")), body.get("value"));
     subjectManager.store(subject);
+    AUDIT.info("subject.created owner={} id={} category={}", owner.value(), subject.identifier().uuid(), body.get("category"));
     return Response.status(Response.Status.CREATED).entity(subject).build();
   }
 
@@ -91,6 +96,7 @@ public class SubjectResource {
         .value(body.get("value"))
         .build();
     subjectManager.update(subject);
+    AUDIT.info("subject.updated owner={} id={}", owner.value(), id);
     return Response.ok(subject).build();
   }
 
@@ -105,6 +111,9 @@ public class SubjectResource {
         .value("placeholder")
         .build();
     boolean deleted = subjectManager.delete(subject);
+    if (deleted) {
+      AUDIT.info("subject.deleted owner={} id={}", owner.value(), id);
+    }
     return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
   }
 

@@ -3,84 +3,112 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Helper: build a fake JWT with a given sub claim (base64-encoded credential ID)
-function fakeJwt(sub: string): string {
-  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const payload = btoa(JSON.stringify({ sub, iss: 'test', iat: 1700000000, exp: 1700003600 }));
-  const signature = 'fakesig';
-  return `${header}.${payload}.${signature}`;
-}
-
-// auth.ts reads sessionStorage at module load time, so we must reset modules
-// between tests to re-evaluate the module-level `let token = sessionStorage.getItem(...)`.
+// auth.ts no longer reads sessionStorage at module load, but we still reset
+// modules between tests to get a clean credential state.
 async function loadAuth() {
   vi.resetModules();
   const mod = await import('../auth');
   return mod;
 }
 
-describe('getCredentialId', () => {
+describe('isLoggedIn', () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
-  it('decodes base64 sub claim to original username "alice"', async () => {
-    const sub = btoa('alice'); // "YWxpY2U="
-    sessionStorage.setItem('motif_jwt', fakeJwt(sub));
-    const { getCredentialId } = await loadAuth();
-
-    expect(getCredentialId()).toBe('alice');
-  });
-
-  it('decodes base64 sub claim to original username "user@example.com"', async () => {
-    const sub = btoa('user@example.com');
-    sessionStorage.setItem('motif_jwt', fakeJwt(sub));
-    const { getCredentialId } = await loadAuth();
-
-    expect(getCredentialId()).toBe('user@example.com');
-  });
-
-  it('returns null when no token is set', async () => {
-    const { getCredentialId } = await loadAuth();
-
-    expect(getCredentialId()).toBeNull();
+  it('returns false when no credential ID is set', async () => {
+    const { isLoggedIn } = await loadAuth();
+    expect(isLoggedIn()).toBe(false);
   });
 });
 
-describe('isLoggedIn', () => {
+describe('getCredentialId', () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
-  it('returns false when no token', async () => {
-    const { isLoggedIn } = await loadAuth();
+  it('returns null when not logged in', async () => {
+    const { getCredentialId } = await loadAuth();
+    expect(getCredentialId()).toBeNull();
+  });
 
+  it('returns the owner value after successful validateToken', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ value: 'ALICE', identifier: { uuid: '123' }, deleted: false }),
+    }));
+    const { validateToken, getCredentialId } = await loadAuth();
+
+    const valid = await validateToken();
+
+    expect(valid).toBe(true);
+    expect(getCredentialId()).toBe('ALICE');
+  });
+});
+
+describe('validateToken', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns true and sets credentialId when server returns 200', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ value: 'BOB', identifier: { uuid: '456' }, deleted: false }),
+    }));
+    const { validateToken, isLoggedIn, getCredentialId } = await loadAuth();
+
+    const result = await validateToken();
+
+    expect(result).toBe(true);
+    expect(isLoggedIn()).toBe(true);
+    expect(getCredentialId()).toBe('BOB');
+  });
+
+  it('returns false when server returns 401', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+    }));
+    const { validateToken, isLoggedIn } = await loadAuth();
+
+    const result = await validateToken();
+
+    expect(result).toBe(false);
     expect(isLoggedIn()).toBe(false);
   });
 
-  it('returns true when token exists in sessionStorage', async () => {
-    sessionStorage.setItem('motif_jwt', fakeJwt(btoa('alice')));
-    const { isLoggedIn } = await loadAuth();
+  it('returns false on network error without clearing state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
+    const { validateToken } = await loadAuth();
 
-    expect(isLoggedIn()).toBe(true);
+    const result = await validateToken();
+
+    expect(result).toBe(false);
   });
 });
 
 describe('logout', () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    vi.restoreAllMocks();
   });
 
-  it('clears token and sessionStorage', async () => {
-    sessionStorage.setItem('motif_jwt', fakeJwt(btoa('alice')));
-    const { logout, isLoggedIn, getToken } = await loadAuth();
-
+  it('calls DELETE /api/session and clears credentialId', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ value: 'ALICE' }) })
+      .mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal('fetch', mockFetch);
+    const { validateToken, logout, isLoggedIn } = await loadAuth();
+    await validateToken();
     expect(isLoggedIn()).toBe(true);
 
-    logout();
+    await logout();
 
     expect(isLoggedIn()).toBe(false);
-    expect(getToken()).toBeNull();
-    expect(sessionStorage.getItem('motif_jwt')).toBeNull();
+    // Second call should be DELETE /api/session
+    expect(mockFetch).toHaveBeenCalledWith('/api/session', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+    });
   });
 });

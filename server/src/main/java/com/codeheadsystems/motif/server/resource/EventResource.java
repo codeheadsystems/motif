@@ -29,11 +29,15 @@ import java.util.Map;
 import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 @Path("/api/events")
 @Produces(MediaType.APPLICATION_JSON)
 public class EventResource {
+
+  private static final Logger AUDIT = LoggerFactory.getLogger("audit.event");
 
   private final EventManager eventManager;
   private final SubjectManager subjectManager;
@@ -103,6 +107,7 @@ public class EventResource {
               .tags(tags)
               .build();
           eventManager.store(event);
+          AUDIT.info("event.created owner={} id={} subject={}", owner.value(), event.identifier().uuid(), subjectId);
           return Response.status(Response.Status.CREATED).entity(event).build();
         })
         .orElse(Response.status(Response.Status.NOT_FOUND).entity("Subject not found").build());
@@ -122,6 +127,7 @@ public class EventResource {
               .tags(tags)
               .build();
           eventManager.update(updated);
+          AUDIT.info("event.updated owner={} id={}", owner.value(), id);
           return Response.ok(updated).build();
         })
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
@@ -132,6 +138,9 @@ public class EventResource {
   public Response delete(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
     Owner owner = resolveOwner(principal);
     boolean deleted = eventManager.delete(owner, new Identifier(id));
+    if (deleted) {
+      AUDIT.info("event.deleted owner={} id={}", owner.value(), id);
+    }
     return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
   }
 

@@ -5,6 +5,7 @@ server:
   adminConnectors:
     - type: http
       port: 8081
+      bindHost: 127.0.0.1
 
 databaseUrl: jdbc:postgresql://db:5432/motif
 databaseUser: motif

@@ -1,9 +1,7 @@
 import { OpaqueHttpClient } from '@codeheadsystems/hofmann-typescript';
 
-const TOKEN_KEY = 'motif_jwt';
-
 let client: OpaqueHttpClient | null = null;
-let token: string | null = sessionStorage.getItem(TOKEN_KEY);
+let credentialId: string | null = null;
 
 export async function getClient(): Promise<OpaqueHttpClient> {
   if (!client) {
@@ -17,79 +15,77 @@ export async function register(credentialId: string, password: string): Promise<
   await c.register(credentialId, password);
 }
 
-export async function login(credentialId: string, password: string): Promise<string> {
+export async function login(user: string, password: string): Promise<void> {
   const c = await getClient();
-  token = await c.authenticate(credentialId, password);
-  sessionStorage.setItem(TOKEN_KEY, token);
-  return token;
+  const token = await c.authenticate(user, password);
+  // Persist the JWT in an HttpOnly cookie via the server
+  const res = await fetch('/api/session', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error('Failed to establish session');
+  }
+  credentialId = user;
 }
 
 export async function changePassword(oldPassword: string, newPassword: string): Promise<void> {
-  if (!token) throw new Error('Not authenticated');
-  const credId = getCredentialId();
-  if (!credId) throw new Error('Cannot determine credential ID');
+  if (!credentialId) throw new Error('Not authenticated');
   const c = await getClient();
   // Verify the old password by authenticating — throws if wrong
   let freshToken: string;
   try {
-    freshToken = await c.authenticate(credId, oldPassword);
+    freshToken = await c.authenticate(credentialId, oldPassword);
   } catch {
     throw new Error('Current password is incorrect');
   }
-  token = freshToken;
-  sessionStorage.setItem(TOKEN_KEY, token);
+  // Update the session cookie with the fresh token
+  await fetch('/api/session', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${freshToken}` },
+  });
   // Old password verified — proceed with change
-  await c.changePassword(credId, newPassword, token);
+  await c.changePassword(credentialId, newPassword, freshToken);
 }
 
-export function getToken(): string | null {
-  return token;
-}
-
-/**
- * Returns the original credential ID (username) used during registration.
- * The JWT sub claim is base64(UTF-8 bytes of the username), so we decode it.
- */
 export function getCredentialId(): string | null {
-  if (!token) return null;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const sub: string | undefined = payload.sub;
-    if (!sub) return null;
-    // sub is base64-encoded credential identifier — decode to original string
-    return new TextDecoder().decode(Uint8Array.from(atob(sub), c => c.charCodeAt(0)));
-  } catch {
-    return null;
-  }
+  return credentialId;
 }
 
-export function logout(): void {
-  token = null;
-  sessionStorage.removeItem(TOKEN_KEY);
+export async function logout(): Promise<void> {
+  try {
+    await fetch('/api/session', { method: 'DELETE', credentials: 'same-origin' });
+  } catch {
+    // Network error — still clear local state
+  }
+  credentialId = null;
 }
 
 export function isLoggedIn(): boolean {
-  return token !== null;
+  return credentialId !== null;
 }
 
 /**
- * Validates the stored token against the server.
- * If the token is expired or the server rejects it, clears the token.
- * Returns true if the token is valid, false otherwise.
+ * Validates the session by calling the server with the HttpOnly cookie.
+ * If valid, populates the credential ID from the server response.
+ * Returns true if the session is valid, false otherwise.
  */
 export async function validateToken(): Promise<boolean> {
-  if (!token) return false;
   try {
     const res = await fetch('/api/owner', {
-      headers: { 'Authorization': `Bearer ${token}` },
+      credentials: 'same-origin',
     });
-    if (res.status === 401 || res.status === 403) {
-      logout();
-      return false;
+    if (res.ok) {
+      const owner = await res.json();
+      // Owner.value is the credential ID (uppercased by server).
+      // We store it for display; OPAQUE operations are done via fresh authenticate() calls.
+      credentialId = owner.value;
+      return true;
     }
-    return res.ok;
+    credentialId = null;
+    return false;
   } catch {
-    // Network error — don't clear the token, it may be a transient issue
+    // Network error — don't clear state, may be transient
     return false;
   }
 }

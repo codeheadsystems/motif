@@ -46,4 +46,16 @@ class PageRequestTest {
     assertThatThrownBy(() -> new PageRequest(0, 0))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void rejectsPageSizeAboveMax() {
+    assertThatThrownBy(() -> new PageRequest(0, PageRequest.MAX_PAGE_SIZE + 1))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void acceptsMaxPageSize() {
+    PageRequest pr = new PageRequest(0, PageRequest.MAX_PAGE_SIZE);
+    assertThat(pr.pageSize()).isEqualTo(200);
+  }
 }

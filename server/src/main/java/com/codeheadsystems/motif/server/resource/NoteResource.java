@@ -28,11 +28,15 @@ import java.util.Map;
 import java.util.UUID;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Singleton
 @Path("/api/notes")
 @Produces(MediaType.APPLICATION_JSON)
 public class NoteResource {
+
+  private static final Logger AUDIT = LoggerFactory.getLogger("audit.note");
 
   private final NoteManager noteManager;
   private final SubjectManager subjectManager;
@@ -111,6 +115,7 @@ public class NoteResource {
           }
           Note note = builder.build();
           noteManager.store(note);
+          AUDIT.info("note.created owner={} id={} subject={}", owner.value(), note.identifier().uuid(), subjectId);
           return Response.status(Response.Status.CREATED).entity(note).build();
         })
         .orElse(Response.status(Response.Status.NOT_FOUND).entity("Subject not found").build());
@@ -130,6 +135,7 @@ public class NoteResource {
               .tags(tags)
               .build();
           noteManager.update(updated);
+          AUDIT.info("note.updated owner={} id={}", owner.value(), id);
           return Response.ok(updated).build();
         })
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
@@ -140,6 +146,9 @@ public class NoteResource {
   public Response delete(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
     Owner owner = resolveOwner(principal);
     boolean deleted = noteManager.delete(owner, new Identifier(id));
+    if (deleted) {
+      AUDIT.info("note.deleted owner={} id={}", owner.value(), id);
+    }
     return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
   }
 
