@@ -212,7 +212,19 @@ The OPAQUE stores (credentials, sessions, pending sessions) are backed by Postgr
 
 # BEFORE RELEASING
 
+## CRITICAL
+
+**DO NOT RELEASE THIS APPLICATION EVER WITHOUT FIXING THIS!**
+
+### HSM or vault support for OPAQUE keys
 When this application is nearing completion, the OPAQUE keys need to be in a storage
 system separate from the database. 
 
-**DO NOT RELEASE THIS APPLICATION EVER WITHOUT FIXING THIS!**
+### HTTPS in production
+
+HTTPS in production must be enforced in production to protect the JWT in transit. This can be done via a reverse proxy (e.g. Nginx) or by configuring Dropwizard to use TLS directly.
+
+### Database credentials
+
+The database credentials are currently in plaintext config.
+
