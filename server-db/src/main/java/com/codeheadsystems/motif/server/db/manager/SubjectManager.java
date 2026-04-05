@@ -66,7 +66,8 @@ public class SubjectManager {
   public void update(Subject subject) {
     jdbi.useTransaction(handle -> {
       SubjectDao txSubjectDao = handle.attach(SubjectDao.class);
-      Optional<Subject> existing = txSubjectDao.findByIdentifier(subject.identifier().uuid());
+      Optional<Subject> existing = txSubjectDao.findByOwnerAndIdentifier(
+          subject.ownerIdentifier().uuid(), subject.identifier().uuid());
       if (existing.isEmpty()) {
         throw new NotFoundException("Subject not found: " + subject.identifier().uuid());
       }

@@ -83,8 +83,16 @@ public class EventResource {
   @SuppressWarnings("unchecked")
   @POST
   public Response create(@Auth HofmannPrincipal principal, Map<String, Object> body) {
+    if (body == null || body.get("subjectId") == null || body.get("value") == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: subjectId, value").build();
+    }
     Owner owner = resolveOwner(principal);
-    UUID subjectId = UUID.fromString((String) body.get("subjectId"));
+    UUID subjectId;
+    try {
+      subjectId = UUID.fromString((String) body.get("subjectId"));
+    } catch (IllegalArgumentException | ClassCastException e) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Invalid subjectId").build();
+    }
     return subjectManager.getSubject(owner, new Identifier(subjectId))
         .map(subject -> {
           List<Tag> tags = ((List<String>) body.getOrDefault("tags", Collections.emptyList()))

@@ -13,7 +13,9 @@ import io.dropwizard.core.Application;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
 import io.dropwizard.servlets.assets.AssetServlet;
+import jakarta.servlet.DispatcherType;
 import java.nio.charset.StandardCharsets;
+import java.util.EnumSet;
 
 public class MotifApplication extends Application<MotifConfiguration> {
 
@@ -52,6 +54,11 @@ public class MotifApplication extends Application<MotifConfiguration> {
     environment.jersey().register(component.subjectResource());
     environment.jersey().register(component.eventResource());
     environment.jersey().register(component.noteResource());
+
+    // Security headers for all responses (including static assets)
+    environment.servlets()
+        .addFilter("security-headers", new SecurityHeadersFilter())
+        .addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), true, "/*");
 
     // Serve webapp static assets at /app
     environment.servlets()

@@ -68,6 +68,9 @@ public class SubjectResource {
 
   @POST
   public Response create(@Auth HofmannPrincipal principal, Map<String, String> body) {
+    if (body == null || body.get("category") == null || body.get("value") == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: category, value").build();
+    }
     Owner owner = resolveOwner(principal);
     Subject subject = new Subject(owner.identifier(), new Category(body.get("category")), body.get("value"));
     subjectManager.store(subject);
@@ -77,6 +80,9 @@ public class SubjectResource {
   @PUT
   @Path("/{id}")
   public Response update(@Auth HofmannPrincipal principal, @PathParam("id") UUID id, Map<String, String> body) {
+    if (body == null || body.get("category") == null || body.get("value") == null) {
+      return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: category, value").build();
+    }
     Owner owner = resolveOwner(principal);
     Subject subject = Subject.builder()
         .ownerIdentifier(owner.identifier())

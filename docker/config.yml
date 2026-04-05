@@ -11,8 +11,10 @@ databaseUser: motif
 databasePassword: motif
 
 context: motif-opaque-v1
-allowIdentityKsf: true
-argon2MemoryKib: 0
+allowIdentityKsf: false
+argon2MemoryKib: 16384
+argon2Iterations: 3
+argon2Parallelism: 1
 
 corsAllowedOrigins:
   - "http://localhost:8080"

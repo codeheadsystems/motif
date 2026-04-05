@@ -150,7 +150,7 @@ class SubjectManagerTest {
 
   @Test
   void updateStoresWhenSubjectExists() {
-    when(subjectDao.findByIdentifier(SUBJECT.identifier().uuid()))
+    when(subjectDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
         .thenReturn(Optional.of(SUBJECT));
 
     Subject updated = Subject.from(SUBJECT).value("updated").build();
@@ -165,7 +165,7 @@ class SubjectManagerTest {
 
   @Test
   void updateThrowsWhenSubjectDoesNotExist() {
-    when(subjectDao.findByIdentifier(SUBJECT.identifier().uuid()))
+    when(subjectDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> subjectManager.update(SUBJECT))
