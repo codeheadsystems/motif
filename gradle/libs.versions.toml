@@ -36,6 +36,7 @@ dropwizard-testing = { module = "io.dropwizard:dropwizard-testing", version.ref 
 
 # Hofmann (OPAQUE authentication)
 hofmann-dropwizard = { module = "com.codeheadsystems:hofmann-dropwizard", version.ref = "hofmann" }
+hofmann-client = { module = "com.codeheadsystems:hofmann-client", version.ref = "hofmann" }
 
 # Dependency Injection
 dagger = { module = "com.google.dagger:dagger", version.ref = "dagger" }

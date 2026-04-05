@@ -23,6 +23,7 @@ dependencies {
 
     // Testing
     testImplementation(libs.bundles.testing)
+    testImplementation(libs.hofmann.client)
     testImplementation(libs.dropwizard.testing)
     testImplementation(platform(libs.testcontainers.bom))
     testImplementation(libs.testcontainers.core)
@@ -50,6 +51,12 @@ tasks.named("processResources") {
     dependsOn(buildWebapp)
 }
 
+val testWebapp by tasks.registering(Exec::class) {
+    workingDir = file("../webapp")
+    commandLine("npm", "test")
+}
+
 tasks.named<Test>("test") {
+    dependsOn(testWebapp)
     useJUnitPlatform()
 }
