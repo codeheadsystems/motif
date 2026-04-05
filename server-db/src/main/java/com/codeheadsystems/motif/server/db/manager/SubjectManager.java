@@ -25,11 +25,11 @@ public class SubjectManager {
     this.subjectDao = subjectDao;
   }
 
-  public Optional<Subject> getSubject(Identifier identifier) {
+  public Optional<Subject> get(Identifier identifier) {
     return subjectDao.findByIdentifier(identifier.uuid());
   }
 
-  public Optional<Subject> getSubject(Owner owner, Identifier identifier) {
+  public Optional<Subject> get(Owner owner, Identifier identifier) {
     return subjectDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid());
   }
 

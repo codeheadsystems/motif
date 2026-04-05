@@ -3,7 +3,6 @@ package com.codeheadsystems.motif.server.resource;
 import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
-import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
 import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Identifier;
@@ -37,18 +36,18 @@ public class SubjectResource {
   private static final Logger AUDIT = LoggerFactory.getLogger("audit.subject");
 
   private final SubjectManager subjectManager;
-  private final OwnerManager ownerManager;
+  private final OwnerResolver ownerResolver;
 
   @Inject
-  public SubjectResource(final SubjectManager subjectManager, final OwnerManager ownerManager) {
+  public SubjectResource(final SubjectManager subjectManager, final OwnerResolver ownerResolver) {
     this.subjectManager = subjectManager;
-    this.ownerManager = ownerManager;
+    this.ownerResolver = ownerResolver;
   }
 
   @GET
   @Path("/categories")
   public List<Category> categories(@Auth HofmannPrincipal principal) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return subjectManager.findCategories(owner);
   }
 
@@ -57,15 +56,15 @@ public class SubjectResource {
                             @QueryParam("category") String category,
                             @QueryParam("page") @DefaultValue("0") int page,
                             @QueryParam("size") @DefaultValue("50") int size) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return subjectManager.findByCategory(owner, new Category(category), new PageRequest(page, size));
   }
 
   @GET
   @Path("/{id}")
   public Response get(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
-    Owner owner = resolveOwner(principal);
-    return subjectManager.getSubject(owner, new Identifier(id))
+    Owner owner = ownerResolver.resolve(principal);
+    return subjectManager.get(owner, new Identifier(id))
         .map(s -> Response.ok(s).build())
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
   }
@@ -75,7 +74,7 @@ public class SubjectResource {
     if (body == null || body.get("category") == null || body.get("value") == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: category, value").build();
     }
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     Subject subject = new Subject(owner.identifier(), new Category(body.get("category")), body.get("value"));
     subjectManager.store(subject);
     AUDIT.info("subject.created owner={} id={} category={}", owner.value(), subject.identifier().uuid(), body.get("category"));
@@ -88,7 +87,7 @@ public class SubjectResource {
     if (body == null || body.get("category") == null || body.get("value") == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: category, value").build();
     }
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     Subject subject = Subject.builder()
         .ownerIdentifier(owner.identifier())
         .identifier(new Identifier(id))
@@ -103,7 +102,7 @@ public class SubjectResource {
   @DELETE
   @Path("/{id}")
   public Response delete(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     Subject subject = Subject.builder()
         .ownerIdentifier(owner.identifier())
         .identifier(new Identifier(id))
@@ -115,15 +114,5 @@ public class SubjectResource {
       AUDIT.info("subject.deleted owner={} id={}", owner.value(), id);
     }
     return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
-  }
-
-  private Owner resolveOwner(HofmannPrincipal principal) {
-    String credId = principal.credentialIdentifier();
-    return ownerManager.find(credId)
-        .orElseGet(() -> {
-          Owner owner = new Owner(credId);
-          ownerManager.store(owner);
-          return owner;
-        });
   }
 }

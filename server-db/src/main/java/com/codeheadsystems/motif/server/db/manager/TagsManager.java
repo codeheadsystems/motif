@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -66,6 +68,21 @@ public class TagsManager {
 
   public void syncTags(Identifier identifier, List<Tag> desiredTags) {
     syncTags(tagsDao, identifier, desiredTags);
+  }
+
+  public <T> T hydrate(T entity, Function<T, Identifier> idExtractor,
+                       BiFunction<T, List<Tag>, T> withTags) {
+    List<Tag> tags = tagsFor(idExtractor.apply(entity));
+    return withTags.apply(entity, tags);
+  }
+
+  public <T> List<T> hydrateBatch(List<T> entities, Function<T, Identifier> idExtractor,
+                                   BiFunction<T, List<Tag>, T> withTags) {
+    List<Identifier> ids = entities.stream().map(idExtractor).toList();
+    Map<Identifier, List<Tag>> tagMap = tagsFor(ids);
+    return entities.stream()
+        .map(e -> withTags.apply(e, tagMap.getOrDefault(idExtractor.apply(e), List.of())))
+        .toList();
   }
 
   void syncTags(TagsDao txTagsDao, Identifier identifier, List<Tag> desiredTags) {

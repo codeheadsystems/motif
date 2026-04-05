@@ -22,7 +22,6 @@ import com.codeheadsystems.motif.server.db.model.Tag;
 import com.codeheadsystems.motif.server.db.model.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.HandleCallback;
@@ -100,10 +99,10 @@ class EventManagerTest {
 
   @Test
   void getHydratesTagsFromTagsManager() {
+    Event hydrated = Event.from(EVENT).tags(List.of(new Tag("X"))).build();
     when(eventDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), EVENT.identifier().uuid()))
         .thenReturn(Optional.of(EVENT));
-    when(tagsManager.tagsFor(EVENT.identifier()))
-        .thenReturn(List.of(new Tag("X")));
+    when(tagsManager.hydrate(eq(EVENT), any(), any())).thenReturn(hydrated);
 
     Optional<Event> result = eventManager.get(OWNER, EVENT.identifier());
 
@@ -149,8 +148,11 @@ class EventManagerTest {
         .thenReturn(Optional.of(EVENT));
 
     Event updated = Event.from(EVENT).value("updated").build();
-    eventManager.update(updated);
+    when(tagsManager.hydrate(eq(updated), any(), any())).thenReturn(updated);
 
+    Event result = eventManager.update(updated);
+
+    assertThat(result).isNotNull();
     verify(eventDao).upsert(
         updated.identifier().uuid(),
         updated.ownerIdentifier().uuid(),
@@ -175,10 +177,11 @@ class EventManagerTest {
   @Test
   void findBySubjectHydratesTags() {
     PageRequest pr = PageRequest.first(10);
+    Event hydrated = Event.from(EVENT).tags(List.of(new Tag("Y"))).build();
     when(eventDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(EVENT));
-    when(tagsManager.tagsFor(List.of(EVENT.identifier())))
-        .thenReturn(Map.of(EVENT.identifier(), List.of(new Tag("Y"))));
+    when(tagsManager.hydrateBatch(eq(List.of(EVENT)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Event> result = eventManager.findBySubject(OWNER, SUBJECT, pr);
 
@@ -194,11 +197,12 @@ class EventManagerTest {
     PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
+    Event hydrated = Event.from(EVENT).tags(List.of(new Tag("Z"))).build();
     when(eventDao.findByOwnerAndTimeRange(
         OWNER.identifier().uuid(), from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(EVENT));
-    when(tagsManager.tagsFor(List.of(EVENT.identifier())))
-        .thenReturn(Map.of(EVENT.identifier(), List.of(new Tag("Z"))));
+    when(tagsManager.hydrateBatch(eq(List.of(EVENT)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Event> result = eventManager.findByTimeRange(OWNER, from, to, pr);
 
@@ -213,12 +217,13 @@ class EventManagerTest {
     PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
+    Event hydrated = Event.from(EVENT).tags(List.of(new Tag("W"))).build();
     when(eventDao.findByOwnerSubjectAndTimeRange(
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(EVENT));
-    when(tagsManager.tagsFor(List.of(EVENT.identifier())))
-        .thenReturn(Map.of(EVENT.identifier(), List.of(new Tag("W"))));
+    when(tagsManager.hydrateBatch(eq(List.of(EVENT)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Event> result = eventManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to, pr);
 

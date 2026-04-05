@@ -4,7 +4,6 @@ import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.db.manager.EventManager;
-import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
 import com.codeheadsystems.motif.server.db.model.Event;
 import com.codeheadsystems.motif.server.db.model.Identifier;
@@ -41,15 +40,15 @@ public class EventResource {
 
   private final EventManager eventManager;
   private final SubjectManager subjectManager;
-  private final OwnerManager ownerManager;
+  private final OwnerResolver ownerResolver;
 
   @Inject
   public EventResource(final EventManager eventManager,
                        final SubjectManager subjectManager,
-                       final OwnerManager ownerManager) {
+                       final OwnerResolver ownerResolver) {
     this.eventManager = eventManager;
     this.subjectManager = subjectManager;
-    this.ownerManager = ownerManager;
+    this.ownerResolver = ownerResolver;
   }
 
   @GET
@@ -57,7 +56,7 @@ public class EventResource {
   public Page<Event> recent(@Auth HofmannPrincipal principal,
                             @QueryParam("page") @DefaultValue("0") int page,
                             @QueryParam("size") @DefaultValue("20") int size) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return eventManager.findRecent(owner, new PageRequest(page, size));
   }
 
@@ -66,8 +65,8 @@ public class EventResource {
                        @QueryParam("subject") UUID subjectId,
                        @QueryParam("page") @DefaultValue("0") int page,
                        @QueryParam("size") @DefaultValue("50") int size) {
-    Owner owner = resolveOwner(principal);
-    return subjectManager.getSubject(owner, new Identifier(subjectId))
+    Owner owner = ownerResolver.resolve(principal);
+    return subjectManager.get(owner, new Identifier(subjectId))
         .map(subject -> {
           Page<Event> events = eventManager.findBySubject(owner, subject, new PageRequest(page, size));
           return Response.ok(events).build();
@@ -78,7 +77,7 @@ public class EventResource {
   @GET
   @Path("/{id}")
   public Response get(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return eventManager.get(owner, new Identifier(id))
         .map(e -> Response.ok(e).build())
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
@@ -90,14 +89,14 @@ public class EventResource {
     if (body == null || body.get("subjectId") == null || body.get("value") == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: subjectId, value").build();
     }
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     UUID subjectId;
     try {
       subjectId = UUID.fromString((String) body.get("subjectId"));
     } catch (IllegalArgumentException | ClassCastException e) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Invalid subjectId").build();
     }
-    return subjectManager.getSubject(owner, new Identifier(subjectId))
+    return subjectManager.get(owner, new Identifier(subjectId))
         .map(subject -> {
           List<Tag> tags = ((List<String>) body.getOrDefault("tags", Collections.emptyList()))
               .stream().map(Tag::new).toList();
@@ -117,7 +116,7 @@ public class EventResource {
   @PUT
   @Path("/{id}")
   public Response update(@Auth HofmannPrincipal principal, @PathParam("id") UUID id, Map<String, Object> body) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return eventManager.get(owner, new Identifier(id))
         .map(existing -> {
           List<Tag> tags = ((List<String>) body.getOrDefault("tags", Collections.emptyList()))
@@ -126,9 +125,9 @@ public class EventResource {
               .value((String) body.get("value"))
               .tags(tags)
               .build();
-          eventManager.update(updated);
+          Event hydrated = eventManager.update(updated);
           AUDIT.info("event.updated owner={} id={}", owner.value(), id);
-          return Response.ok(updated).build();
+          return Response.ok(hydrated).build();
         })
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
   }
@@ -136,21 +135,11 @@ public class EventResource {
   @DELETE
   @Path("/{id}")
   public Response delete(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     boolean deleted = eventManager.delete(owner, new Identifier(id));
     if (deleted) {
       AUDIT.info("event.deleted owner={} id={}", owner.value(), id);
     }
     return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
-  }
-
-  private Owner resolveOwner(HofmannPrincipal principal) {
-    String credId = principal.credentialIdentifier();
-    return ownerManager.find(credId)
-        .orElseGet(() -> {
-          Owner owner = new Owner(credId);
-          ownerManager.store(owner);
-          return owner;
-        });
   }
 }

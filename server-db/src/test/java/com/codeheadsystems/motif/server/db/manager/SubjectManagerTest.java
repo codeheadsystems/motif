@@ -69,45 +69,45 @@ class SubjectManagerTest {
         SUBJECT.value());
   }
 
-  // --- getSubject by identifier ---
+  // --- get by identifier ---
 
   @Test
-  void getSubjectByIdentifierDelegatesToDao() {
+  void getByIdentifierDelegatesToDao() {
     when(subjectDao.findByIdentifier(SUBJECT.identifier().uuid()))
         .thenReturn(Optional.of(SUBJECT));
 
-    Optional<Subject> result = subjectManager.getSubject(SUBJECT.identifier());
+    Optional<Subject> result = subjectManager.get(SUBJECT.identifier());
 
     assertThat(result).contains(SUBJECT);
   }
 
   @Test
-  void getSubjectByIdentifierReturnsEmptyWhenNotFound() {
+  void getByIdentifierReturnsEmptyWhenNotFound() {
     Identifier unknown = new Identifier();
     when(subjectDao.findByIdentifier(unknown.uuid())).thenReturn(Optional.empty());
 
-    assertThat(subjectManager.getSubject(unknown)).isEmpty();
+    assertThat(subjectManager.get(unknown)).isEmpty();
   }
 
-  // --- getSubject by owner and identifier ---
+  // --- get by owner and identifier ---
 
   @Test
-  void getSubjectByOwnerAndIdentifierDelegatesToDao() {
+  void getByOwnerAndIdentifierDelegatesToDao() {
     when(subjectDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), SUBJECT.identifier().uuid()))
         .thenReturn(Optional.of(SUBJECT));
 
-    Optional<Subject> result = subjectManager.getSubject(OWNER, SUBJECT.identifier());
+    Optional<Subject> result = subjectManager.get(OWNER, SUBJECT.identifier());
 
     assertThat(result).contains(SUBJECT);
   }
 
   @Test
-  void getSubjectByOwnerAndIdentifierReturnsEmptyForWrongOwner() {
+  void getByOwnerAndIdentifierReturnsEmptyForWrongOwner() {
     Owner other = new Owner("OTHER-OWNER");
     when(subjectDao.findByOwnerAndIdentifier(other.identifier().uuid(), SUBJECT.identifier().uuid()))
         .thenReturn(Optional.empty());
 
-    assertThat(subjectManager.getSubject(other, SUBJECT.identifier())).isEmpty();
+    assertThat(subjectManager.get(other, SUBJECT.identifier())).isEmpty();
   }
 
   // --- findByCategory ---

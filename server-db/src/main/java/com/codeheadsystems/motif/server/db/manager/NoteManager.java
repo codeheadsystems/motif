@@ -11,7 +11,6 @@ import com.codeheadsystems.motif.server.db.model.Subject;
 import com.codeheadsystems.motif.server.db.model.Tag;
 import com.codeheadsystems.motif.server.db.model.Timestamp;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -38,7 +37,7 @@ public class NoteManager {
 
   public Optional<Note> get(Owner owner, Identifier identifier) {
     return noteDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid())
-        .map(this::hydrateTags);
+        .map(n -> tagsManager.hydrate(n, Note::identifier, NoteManager::withTags));
   }
 
   public boolean delete(Owner owner, Identifier identifier) {
@@ -54,7 +53,7 @@ public class NoteManager {
     });
   }
 
-  public void update(Note note) {
+  public Note update(Note note) {
     jdbi.useTransaction(handle -> {
       NoteDao txNoteDao = handle.attach(NoteDao.class);
       Optional<Note> existing = txNoteDao.findByOwnerAndIdentifier(
@@ -64,20 +63,21 @@ public class NoteManager {
       }
       storeInTransaction(handle, note);
     });
+    return tagsManager.hydrate(note, Note::identifier, NoteManager::withTags);
   }
 
   public Page<Note> findRecent(Owner owner, PageRequest pageRequest) {
     List<Note> results = noteDao.findRecentByOwner(
         owner.identifier().uuid(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Note::identifier, NoteManager::withTags), pageRequest);
   }
 
   public Page<Note> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
     List<Note> results = noteDao.findByOwnerAndSubject(
         owner.identifier().uuid(), subject.identifier().uuid(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Note::identifier, NoteManager::withTags), pageRequest);
   }
 
   public Page<Note> findBySubjectAndTimeRange(Owner owner, Subject subject,
@@ -89,7 +89,7 @@ public class NoteManager {
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Note::identifier, NoteManager::withTags), pageRequest);
   }
 
   public Page<Note> findByEvent(Owner owner, Identifier eventIdentifier,
@@ -97,7 +97,7 @@ public class NoteManager {
     List<Note> results = noteDao.findByOwnerAndEvent(
         owner.identifier().uuid(), eventIdentifier.uuid(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Note::identifier, NoteManager::withTags), pageRequest);
   }
 
   public Page<Note> findByEventAndTimeRange(Owner owner, Identifier eventIdentifier,
@@ -109,7 +109,7 @@ public class NoteManager {
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Note::identifier, NoteManager::withTags), pageRequest);
   }
 
   private void storeInTransaction(Handle handle, Note note) {
@@ -125,16 +125,7 @@ public class NoteManager {
     tagsManager.syncTags(txTagsDao, note.identifier(), note.tags());
   }
 
-  private Note hydrateTags(Note note) {
-    List<Tag> tags = tagsManager.tagsFor(note.identifier());
+  private static Note withTags(Note note, List<Tag> tags) {
     return Note.from(note).tags(tags).build();
-  }
-
-  private List<Note> hydrateTagsBatch(List<Note> notes) {
-    List<Identifier> ids = notes.stream().map(Note::identifier).toList();
-    Map<Identifier, List<Tag>> tagMap = tagsManager.tagsFor(ids);
-    return notes.stream()
-        .map(n -> Note.from(n).tags(tagMap.getOrDefault(n.identifier(), List.of())).build())
-        .toList();
   }
 }

@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 
 import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.server.db.manager.NoteManager;
-import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
 import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Identifier;
@@ -36,14 +35,14 @@ class NoteResourceTest {
   @Mock
   private SubjectManager subjectManager;
   @Mock
-  private OwnerManager ownerManager;
+  private OwnerResolver ownerResolver;
 
   private NoteResource resource;
 
   @BeforeEach
   void setUp() {
-    when(ownerManager.find("ALICE")).thenReturn(Optional.of(OWNER));
-    resource = new NoteResource(noteManager, subjectManager, ownerManager);
+    when(ownerResolver.resolve(PRINCIPAL)).thenReturn(OWNER);
+    resource = new NoteResource(noteManager, subjectManager, ownerResolver);
   }
 
   @Test
@@ -69,7 +68,7 @@ class NoteResourceTest {
 
   @Test
   void createReturns201() {
-    when(subjectManager.getSubject(eq(OWNER), any(Identifier.class)))
+    when(subjectManager.get(eq(OWNER), any(Identifier.class)))
         .thenReturn(Optional.of(SUBJECT));
 
     Response response = resource.create(PRINCIPAL,

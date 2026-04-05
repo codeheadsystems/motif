@@ -11,7 +11,6 @@ import com.codeheadsystems.motif.server.db.model.Subject;
 import com.codeheadsystems.motif.server.db.model.Tag;
 import com.codeheadsystems.motif.server.db.model.Timestamp;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -38,7 +37,7 @@ public class EventManager {
 
   public Optional<Event> get(Owner owner, Identifier identifier) {
     return eventDao.findByOwnerAndIdentifier(owner.identifier().uuid(), identifier.uuid())
-        .map(this::hydrateTags);
+        .map(e -> tagsManager.hydrate(e, Event::identifier, EventManager::withTags));
   }
 
   public boolean delete(Owner owner, Identifier identifier) {
@@ -54,7 +53,7 @@ public class EventManager {
     });
   }
 
-  public void update(Event event) {
+  public Event update(Event event) {
     jdbi.useTransaction(handle -> {
       EventDao txEventDao = handle.attach(EventDao.class);
       Optional<Event> existing = txEventDao.findByOwnerAndIdentifier(
@@ -64,20 +63,21 @@ public class EventManager {
       }
       storeInTransaction(handle, event);
     });
+    return tagsManager.hydrate(event, Event::identifier, EventManager::withTags);
   }
 
   public Page<Event> findRecent(Owner owner, PageRequest pageRequest) {
     List<Event> results = eventDao.findRecentByOwner(
         owner.identifier().uuid(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Event::identifier, EventManager::withTags), pageRequest);
   }
 
   public Page<Event> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
     List<Event> results = eventDao.findByOwnerAndSubject(
         owner.identifier().uuid(), subject.identifier().uuid(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Event::identifier, EventManager::withTags), pageRequest);
   }
 
   public Page<Event> findByTimeRange(Owner owner, Timestamp from, Timestamp to,
@@ -87,7 +87,7 @@ public class EventManager {
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Event::identifier, EventManager::withTags), pageRequest);
   }
 
   public Page<Event> findBySubjectAndTimeRange(Owner owner, Subject subject,
@@ -99,7 +99,7 @@ public class EventManager {
         from.toOffsetDateTime(),
         to.toOffsetDateTime(),
         pageRequest.pageSize() + 1, pageRequest.offset());
-    return Page.of(hydrateTagsBatch(results), pageRequest);
+    return Page.of(tagsManager.hydrateBatch(results, Event::identifier, EventManager::withTags), pageRequest);
   }
 
   private void storeInTransaction(Handle handle, Event event) {
@@ -114,16 +114,7 @@ public class EventManager {
     tagsManager.syncTags(txTagsDao, event.identifier(), event.tags());
   }
 
-  private Event hydrateTags(Event event) {
-    List<Tag> tags = tagsManager.tagsFor(event.identifier());
+  private static Event withTags(Event event, List<Tag> tags) {
     return Event.from(event).tags(tags).build();
-  }
-
-  private List<Event> hydrateTagsBatch(List<Event> events) {
-    List<Identifier> ids = events.stream().map(Event::identifier).toList();
-    Map<Identifier, List<Tag>> tagMap = tagsManager.tagsFor(ids);
-    return events.stream()
-        .map(e -> Event.from(e).tags(tagMap.getOrDefault(e.identifier(), List.of())).build())
-        .toList();
   }
 }

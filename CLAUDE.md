@@ -43,7 +43,7 @@ Event modified = Event.from(event)
 ## Testing
 
 - Always run the full test suite (`./gradlew test`) after any change to ensure nothing is broken.
-- Tests use JUnit Jupiter, AssertJ, and Testcontainers (PostgreSQL 16).
+- Tests use JUnit Jupiter, AssertJ, and Testcontainers (PostgreSQL).
 - DAO and Manager tests use real PostgreSQL via Testcontainers with Flyway migrations.
 
 ## Design Principles

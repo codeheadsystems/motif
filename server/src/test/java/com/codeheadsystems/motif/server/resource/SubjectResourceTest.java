@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
-import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
 import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Owner;
@@ -32,14 +31,14 @@ class SubjectResourceTest {
   @Mock
   private SubjectManager subjectManager;
   @Mock
-  private OwnerManager ownerManager;
+  private OwnerResolver ownerResolver;
 
   private SubjectResource resource;
 
   @BeforeEach
   void setUp() {
-    when(ownerManager.find("ALICE")).thenReturn(Optional.of(OWNER));
-    resource = new SubjectResource(subjectManager, ownerManager);
+    when(ownerResolver.resolve(PRINCIPAL)).thenReturn(OWNER);
+    resource = new SubjectResource(subjectManager, ownerResolver);
   }
 
   @Test
@@ -56,7 +55,7 @@ class SubjectResourceTest {
   @Test
   void getReturnsSubject() {
     Subject subject = new Subject(OWNER.identifier(), new Category("test"), "sub-1");
-    when(subjectManager.getSubject(eq(OWNER), any()))
+    when(subjectManager.get(eq(OWNER), any()))
         .thenReturn(Optional.of(subject));
 
     Response response = resource.get(PRINCIPAL, subject.identifier().uuid());
@@ -66,7 +65,7 @@ class SubjectResourceTest {
 
   @Test
   void getReturns404WhenNotFound() {
-    when(subjectManager.getSubject(eq(OWNER), any()))
+    when(subjectManager.get(eq(OWNER), any()))
         .thenReturn(Optional.empty());
 
     Response response = resource.get(PRINCIPAL, java.util.UUID.randomUUID());

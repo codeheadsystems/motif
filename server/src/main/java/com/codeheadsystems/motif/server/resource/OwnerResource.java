@@ -1,7 +1,6 @@
 package com.codeheadsystems.motif.server.resource;
 
 import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
-import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.model.Owner;
 import io.dropwizard.auth.Auth;
 import jakarta.ws.rs.GET;
@@ -20,27 +19,16 @@ public class OwnerResource {
 
   private static final Logger AUDIT = LoggerFactory.getLogger("audit.owner");
 
-  private final OwnerManager ownerManager;
+  private final OwnerResolver ownerResolver;
 
   @Inject
-  public OwnerResource(final OwnerManager ownerManager) {
-    this.ownerManager = ownerManager;
+  public OwnerResource(final OwnerResolver ownerResolver) {
+    this.ownerResolver = ownerResolver;
   }
 
   @GET
   public Owner getOrCreateOwner(@Auth HofmannPrincipal principal) {
     AUDIT.info("owner.access credentialId={}", principal.credentialIdentifier());
-    return resolveOwner(principal);
-  }
-
-  Owner resolveOwner(HofmannPrincipal principal) {
-    String credId = principal.credentialIdentifier();
-    return ownerManager.find(credId)
-        .orElseGet(() -> {
-          Owner owner = new Owner(credId);
-          ownerManager.store(owner);
-          AUDIT.info("owner.created credentialId={}", credId);
-          return owner;
-        });
+    return ownerResolver.resolve(principal);
   }
 }

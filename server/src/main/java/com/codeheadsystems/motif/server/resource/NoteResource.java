@@ -4,7 +4,6 @@ import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.db.manager.NoteManager;
-import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Note;
@@ -40,15 +39,15 @@ public class NoteResource {
 
   private final NoteManager noteManager;
   private final SubjectManager subjectManager;
-  private final OwnerManager ownerManager;
+  private final OwnerResolver ownerResolver;
 
   @Inject
   public NoteResource(final NoteManager noteManager,
                       final SubjectManager subjectManager,
-                      final OwnerManager ownerManager) {
+                      final OwnerResolver ownerResolver) {
     this.noteManager = noteManager;
     this.subjectManager = subjectManager;
-    this.ownerManager = ownerManager;
+    this.ownerResolver = ownerResolver;
   }
 
   @GET
@@ -56,7 +55,7 @@ public class NoteResource {
   public Page<Note> recent(@Auth HofmannPrincipal principal,
                            @QueryParam("page") @DefaultValue("0") int page,
                            @QueryParam("size") @DefaultValue("20") int size) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return noteManager.findRecent(owner, new PageRequest(page, size));
   }
 
@@ -65,8 +64,8 @@ public class NoteResource {
                        @QueryParam("subject") UUID subjectId,
                        @QueryParam("page") @DefaultValue("0") int page,
                        @QueryParam("size") @DefaultValue("50") int size) {
-    Owner owner = resolveOwner(principal);
-    return subjectManager.getSubject(owner, new Identifier(subjectId))
+    Owner owner = ownerResolver.resolve(principal);
+    return subjectManager.get(owner, new Identifier(subjectId))
         .map(subject -> {
           Page<Note> notes = noteManager.findBySubject(owner, subject, new PageRequest(page, size));
           return Response.ok(notes).build();
@@ -77,7 +76,7 @@ public class NoteResource {
   @GET
   @Path("/{id}")
   public Response get(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return noteManager.get(owner, new Identifier(id))
         .map(n -> Response.ok(n).build())
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
@@ -89,14 +88,14 @@ public class NoteResource {
     if (body == null || body.get("subjectId") == null || body.get("value") == null) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: subjectId, value").build();
     }
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     UUID subjectId;
     try {
       subjectId = UUID.fromString((String) body.get("subjectId"));
     } catch (IllegalArgumentException | ClassCastException e) {
       return Response.status(Response.Status.BAD_REQUEST).entity("Invalid subjectId").build();
     }
-    return subjectManager.getSubject(owner, new Identifier(subjectId))
+    return subjectManager.get(owner, new Identifier(subjectId))
         .map(subject -> {
           List<Tag> tags = ((List<String>) body.getOrDefault("tags", Collections.emptyList()))
               .stream().map(Tag::new).toList();
@@ -125,7 +124,7 @@ public class NoteResource {
   @PUT
   @Path("/{id}")
   public Response update(@Auth HofmannPrincipal principal, @PathParam("id") UUID id, Map<String, Object> body) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     return noteManager.get(owner, new Identifier(id))
         .map(existing -> {
           List<Tag> tags = ((List<String>) body.getOrDefault("tags", Collections.emptyList()))
@@ -134,9 +133,9 @@ public class NoteResource {
               .value((String) body.get("value"))
               .tags(tags)
               .build();
-          noteManager.update(updated);
+          Note hydrated = noteManager.update(updated);
           AUDIT.info("note.updated owner={} id={}", owner.value(), id);
-          return Response.ok(updated).build();
+          return Response.ok(hydrated).build();
         })
         .orElse(Response.status(Response.Status.NOT_FOUND).build());
   }
@@ -144,21 +143,11 @@ public class NoteResource {
   @DELETE
   @Path("/{id}")
   public Response delete(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
-    Owner owner = resolveOwner(principal);
+    Owner owner = ownerResolver.resolve(principal);
     boolean deleted = noteManager.delete(owner, new Identifier(id));
     if (deleted) {
       AUDIT.info("note.deleted owner={} id={}", owner.value(), id);
     }
     return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
-  }
-
-  private Owner resolveOwner(HofmannPrincipal principal) {
-    String credId = principal.credentialIdentifier();
-    return ownerManager.find(credId)
-        .orElseGet(() -> {
-          Owner owner = new Owner(credId);
-          ownerManager.store(owner);
-          return owner;
-        });
   }
 }

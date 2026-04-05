@@ -23,7 +23,6 @@ import com.codeheadsystems.motif.server.db.model.Tag;
 import com.codeheadsystems.motif.server.db.model.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.HandleCallback;
@@ -121,10 +120,10 @@ class NoteManagerTest {
 
   @Test
   void getHydratesTagsFromTagsManager() {
+    Note hydrated = Note.from(NOTE).tags(List.of(new Tag("X"))).build();
     when(noteDao.findByOwnerAndIdentifier(OWNER.identifier().uuid(), NOTE.identifier().uuid()))
         .thenReturn(Optional.of(NOTE));
-    when(tagsManager.tagsFor(NOTE.identifier()))
-        .thenReturn(List.of(new Tag("X")));
+    when(tagsManager.hydrate(eq(NOTE), any(), any())).thenReturn(hydrated);
 
     Optional<Note> result = noteManager.get(OWNER, NOTE.identifier());
 
@@ -170,8 +169,11 @@ class NoteManagerTest {
         .thenReturn(Optional.of(NOTE));
 
     Note updated = Note.from(NOTE).value("updated").build();
-    noteManager.update(updated);
+    when(tagsManager.hydrate(eq(updated), any(), any())).thenReturn(updated);
 
+    Note result = noteManager.update(updated);
+
+    assertThat(result).isNotNull();
     verify(noteDao).upsert(
         updated.identifier().uuid(),
         updated.ownerIdentifier().uuid(),
@@ -197,10 +199,11 @@ class NoteManagerTest {
   @Test
   void findBySubjectHydratesTags() {
     PageRequest pr = PageRequest.first(10);
+    Note hydrated = Note.from(NOTE).tags(List.of(new Tag("Y"))).build();
     when(noteDao.findByOwnerAndSubject(OWNER.identifier().uuid(), SUBJECT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
-        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("Y"))));
+    when(tagsManager.hydrateBatch(eq(List.of(NOTE)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Note> result = noteManager.findBySubject(OWNER, SUBJECT, pr);
 
@@ -215,12 +218,13 @@ class NoteManagerTest {
     PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
+    Note hydrated = Note.from(NOTE).tags(List.of(new Tag("Z"))).build();
     when(noteDao.findByOwnerSubjectAndTimeRange(
         OWNER.identifier().uuid(), SUBJECT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
-        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("Z"))));
+    when(tagsManager.hydrateBatch(eq(List.of(NOTE)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Note> result = noteManager.findBySubjectAndTimeRange(OWNER, SUBJECT, from, to, pr);
 
@@ -233,10 +237,11 @@ class NoteManagerTest {
   @Test
   void findByEventHydratesTags() {
     PageRequest pr = PageRequest.first(10);
+    Note hydrated = Note.from(NOTE).tags(List.of(new Tag("W"))).build();
     when(noteDao.findByOwnerAndEvent(OWNER.identifier().uuid(), EVENT.identifier().uuid(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
-        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("W"))));
+    when(tagsManager.hydrateBatch(eq(List.of(NOTE)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Note> result = noteManager.findByEvent(OWNER, EVENT.identifier(), pr);
 
@@ -251,12 +256,13 @@ class NoteManagerTest {
     PageRequest pr = PageRequest.first(10);
     Timestamp from = new Timestamp(Instant.parse("2026-03-28T00:00:00Z"));
     Timestamp to = new Timestamp(Instant.parse("2026-03-28T23:59:59Z"));
+    Note hydrated = Note.from(NOTE).tags(List.of(new Tag("V"))).build();
     when(noteDao.findByOwnerEventAndTimeRange(
         OWNER.identifier().uuid(), EVENT.identifier().uuid(),
         from.toOffsetDateTime(), to.toOffsetDateTime(), 11, 0))
         .thenReturn(List.of(NOTE));
-    when(tagsManager.tagsFor(List.of(NOTE.identifier())))
-        .thenReturn(Map.of(NOTE.identifier(), List.of(new Tag("V"))));
+    when(tagsManager.hydrateBatch(eq(List.of(NOTE)), any(), any()))
+        .thenReturn(List.of(hydrated));
 
     Page<Note> result = noteManager.findByEventAndTimeRange(OWNER, EVENT.identifier(), from, to, pr);
 

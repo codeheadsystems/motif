@@ -45,19 +45,19 @@ class SubjectManagerIntegrationTest extends DatabaseTest {
 
     subjectManager.store(subject);
 
-    Optional<Subject> result = subjectManager.getSubject(subject.identifier());
+    Optional<Subject> result = subjectManager.get(subject.identifier());
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("test-subject");
   }
 
-  // --- getSubject by identifier ---
+  // --- get by identifier ---
 
   @Test
-  void getSubjectByIdentifier() {
+  void getByIdentifier() {
     Subject subject = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
     subjectManager.store(subject);
 
-    Optional<Subject> result = subjectManager.getSubject(subject.identifier());
+    Optional<Subject> result = subjectManager.get(subject.identifier());
 
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("test-subject");
@@ -65,32 +65,32 @@ class SubjectManagerIntegrationTest extends DatabaseTest {
   }
 
   @Test
-  void getSubjectByIdentifierReturnsEmptyWhenNotFound() {
-    assertThat(subjectManager.getSubject(new Identifier())).isEmpty();
+  void getByIdentifierReturnsEmptyWhenNotFound() {
+    assertThat(subjectManager.get(new Identifier())).isEmpty();
   }
 
-  // --- getSubject by owner and identifier ---
+  // --- get by owner and identifier ---
 
   @Test
-  void getSubjectByOwnerAndIdentifier() {
+  void getByOwnerAndIdentifier() {
     Subject subject = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
     subjectManager.store(subject);
 
-    Optional<Subject> result = subjectManager.getSubject(OWNER, subject.identifier());
+    Optional<Subject> result = subjectManager.get(OWNER, subject.identifier());
 
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("test-subject");
   }
 
   @Test
-  void getSubjectByOwnerAndIdentifierReturnsEmptyForWrongOwner() {
+  void getByOwnerAndIdentifierReturnsEmptyForWrongOwner() {
     Owner other = new Owner("OTHER-OWNER");
     ownerDao.upsert(other.identifier().uuid(), other.value(), false);
 
     Subject subject = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
     subjectManager.store(subject);
 
-    assertThat(subjectManager.getSubject(other, subject.identifier())).isEmpty();
+    assertThat(subjectManager.get(other, subject.identifier())).isEmpty();
   }
 
   // --- findByCategory ---
@@ -160,7 +160,7 @@ class SubjectManagerIntegrationTest extends DatabaseTest {
     Subject updated = Subject.from(subject).value("updated").build();
     subjectManager.update(updated);
 
-    Optional<Subject> result = subjectManager.getSubject(subject.identifier());
+    Optional<Subject> result = subjectManager.get(subject.identifier());
     assertThat(result).isPresent();
     assertThat(result.get().value()).isEqualTo("updated");
   }
@@ -181,7 +181,7 @@ class SubjectManagerIntegrationTest extends DatabaseTest {
     subjectManager.store(subject);
 
     assertThat(subjectManager.delete(subject)).isTrue();
-    assertThat(subjectManager.getSubject(subject.identifier())).isEmpty();
+    assertThat(subjectManager.get(subject.identifier())).isEmpty();
   }
 
   @Test
