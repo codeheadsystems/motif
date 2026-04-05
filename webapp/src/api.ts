@@ -79,6 +79,11 @@ export async function deleteSubject(id: string): Promise<void> {
   await apiFetch(`/api/subjects/${id}`, { method: 'DELETE' });
 }
 
+export async function getRecentEvents(size = 20): Promise<Page<Event>> {
+  const res = await apiFetch(`/api/events/recent?size=${size}`);
+  return res.json();
+}
+
 export async function getEvents(subjectId: string, page = 0, size = 50): Promise<Page<Event>> {
   const res = await apiFetch(`/api/events?subject=${subjectId}&page=${page}&size=${size}`);
   return res.json();
@@ -94,6 +99,11 @@ export async function createEvent(subjectId: string, value: string, tags: string
 
 export async function deleteEvent(id: string): Promise<void> {
   await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
+}
+
+export async function getRecentNotes(size = 20): Promise<Page<Note>> {
+  const res = await apiFetch(`/api/notes/recent?size=${size}`);
+  return res.json();
 }
 
 export async function getNotes(subjectId: string, page = 0, size = 50): Promise<Page<Note>> {

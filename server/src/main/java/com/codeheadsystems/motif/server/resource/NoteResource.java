@@ -48,6 +48,15 @@ public class NoteResource {
   }
 
   @GET
+  @Path("/recent")
+  public Page<Note> recent(@Auth HofmannPrincipal principal,
+                           @QueryParam("page") @DefaultValue("0") int page,
+                           @QueryParam("size") @DefaultValue("20") int size) {
+    Owner owner = resolveOwner(principal);
+    return noteManager.findRecent(owner, new PageRequest(page, size));
+  }
+
+  @GET
   public Response list(@Auth HofmannPrincipal principal,
                        @QueryParam("subject") UUID subjectId,
                        @QueryParam("page") @DefaultValue("0") int page,

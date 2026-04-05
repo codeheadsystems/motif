@@ -66,6 +66,13 @@ public class NoteManager {
     });
   }
 
+  public Page<Note> findRecent(Owner owner, PageRequest pageRequest) {
+    List<Note> results = noteDao.findRecentByOwner(
+        owner.identifier().uuid(),
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
+  }
+
   public Page<Note> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
     List<Note> results = noteDao.findByOwnerAndSubject(
         owner.identifier().uuid(), subject.identifier().uuid(),

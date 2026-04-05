@@ -49,6 +49,15 @@ public class EventResource {
   }
 
   @GET
+  @Path("/recent")
+  public Page<Event> recent(@Auth HofmannPrincipal principal,
+                            @QueryParam("page") @DefaultValue("0") int page,
+                            @QueryParam("size") @DefaultValue("20") int size) {
+    Owner owner = resolveOwner(principal);
+    return eventManager.findRecent(owner, new PageRequest(page, size));
+  }
+
+  @GET
   public Response list(@Auth HofmannPrincipal principal,
                        @QueryParam("subject") UUID subjectId,
                        @QueryParam("page") @DefaultValue("0") int page,

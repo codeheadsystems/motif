@@ -51,6 +51,12 @@ public interface EventDao {
   int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
 
   @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
+      + "ORDER BY e.timestamp DESC LIMIT :limit OFFSET :offset")
+  List<Event> findRecentByOwner(@Bind("ownerUuid") UUID ownerUuid,
+                                 @Bind("limit") int limit,
+                                 @Bind("offset") int offset);
+
+  @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
       + "AND e.subject_uuid = :subjectUuid ORDER BY e.timestamp "
       + "LIMIT :limit OFFSET :offset")
   List<Event> findByOwnerAndSubject(@Bind("ownerUuid") UUID ownerUuid,

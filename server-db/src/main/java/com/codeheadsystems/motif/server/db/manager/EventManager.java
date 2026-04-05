@@ -66,6 +66,13 @@ public class EventManager {
     });
   }
 
+  public Page<Event> findRecent(Owner owner, PageRequest pageRequest) {
+    List<Event> results = eventDao.findRecentByOwner(
+        owner.identifier().uuid(),
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(hydrateTagsBatch(results), pageRequest);
+  }
+
   public Page<Event> findBySubject(Owner owner, Subject subject, PageRequest pageRequest) {
     List<Event> results = eventDao.findByOwnerAndSubject(
         owner.identifier().uuid(), subject.identifier().uuid(),

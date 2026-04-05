@@ -8,6 +8,7 @@ import com.codeheadsystems.motif.server.dagger.MotifModule;
 import com.codeheadsystems.motif.server.store.JdbiCredentialStore;
 import com.codeheadsystems.motif.server.store.JdbiPendingSessionStore;
 import com.codeheadsystems.motif.server.store.JdbiSessionStore;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.dropwizard.core.Application;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
@@ -32,6 +33,7 @@ public class MotifApplication extends Application<MotifConfiguration> {
 
   @Override
   public void initialize(Bootstrap<MotifConfiguration> bootstrap) {
+    bootstrap.getObjectMapper().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     bootstrap.addCommand(new InitDatabaseCommand());
     // SetupBundle runs first — initializes JDBI, stores, and loads DB config
     bootstrap.addBundle(setupBundle);

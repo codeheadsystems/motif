@@ -140,10 +140,46 @@ async function renderDashboard(): Promise<void> {
         <div id="category-list"></div>
       </div>
       <div class="col-md-9 p-3">
-        <div id="dashboard-welcome">
-          <h4>Welcome</h4>
-          <p>Credential: <code>${getCredentialId()}</code></p>
-          <p class="text-muted">Create a category in the sidebar, then add subjects to it.</p>
+        <div id="dashboard-home">
+          <!-- Quick-Add Form -->
+          <div class="card mb-3">
+            <div class="card-body">
+              <h6 class="card-title text-muted text-uppercase mb-3">Quick Add</h6>
+              <form id="form-quick-add">
+                <div class="row g-2 align-items-end">
+                  <div class="col-auto">
+                    <div class="btn-group btn-group-sm" role="group">
+                      <input type="radio" class="btn-check" name="qa-type" id="qa-type-event" value="event" checked />
+                      <label class="btn btn-outline-primary" for="qa-type-event">Event</label>
+                      <input type="radio" class="btn-check" name="qa-type" id="qa-type-note" value="note" />
+                      <label class="btn btn-outline-primary" for="qa-type-note">Note</label>
+                    </div>
+                  </div>
+                  <div class="col">
+                    <input list="qa-categories" class="form-control form-control-sm" id="qa-category" placeholder="Category" required />
+                    <datalist id="qa-categories"></datalist>
+                  </div>
+                  <div class="col">
+                    <input list="qa-subjects" class="form-control form-control-sm" id="qa-subject" placeholder="Subject" required />
+                    <datalist id="qa-subjects"></datalist>
+                  </div>
+                  <div class="col-3">
+                    <input type="text" class="form-control form-control-sm" id="qa-value" placeholder="Description" required />
+                  </div>
+                  <div class="col" id="qa-tags-col">
+                    <input type="text" class="form-control form-control-sm" id="qa-tags" placeholder="Tags (comma-sep)" />
+                  </div>
+                  <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+                  </div>
+                </div>
+              </form>
+              <div id="qa-message" class="mt-2"></div>
+            </div>
+          </div>
+          <!-- Activity Timeline -->
+          <h6 class="text-muted text-uppercase mb-2">Recent Activity</h6>
+          <div id="timeline"></div>
         </div>
         <div id="subject-panel" class="d-none">
           <div class="d-flex align-items-center mb-3">
@@ -184,9 +220,64 @@ async function renderDashboard(): Promise<void> {
 function bindDashboard(): void {
   let currentCategory = '';
   let currentSubject: api.Subject | null = null;
+  let cachedCategories: { value: string }[] = [];
 
-  // Load categories on init
+  // Load categories + timeline on init
   loadCategories();
+  loadTimeline();
+  populateQuickAddCategories();
+
+  // Quick-add: populate subjects when category changes
+  document.getElementById('qa-category')!.addEventListener('change', populateQuickAddSubjects);
+  document.getElementById('qa-category')!.addEventListener('input', populateQuickAddSubjects);
+
+  // Quick-add: toggle tags field visibility based on type
+  document.querySelectorAll('input[name="qa-type"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const isEvent = (document.getElementById('qa-type-event') as HTMLInputElement).checked;
+      document.getElementById('qa-tags-col')!.classList.toggle('d-none', !isEvent);
+    });
+  });
+
+  // Quick-add: submit
+  document.getElementById('form-quick-add')!.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('qa-message')!;
+    const isEvent = (document.getElementById('qa-type-event') as HTMLInputElement).checked;
+    const category = (document.getElementById('qa-category') as HTMLInputElement).value.trim();
+    const subjectValue = (document.getElementById('qa-subject') as HTMLInputElement).value.trim();
+    const value = (document.getElementById('qa-value') as HTMLInputElement).value.trim();
+    const tagsStr = (document.getElementById('qa-tags') as HTMLInputElement).value;
+
+    if (!category || !subjectValue || !value) return;
+
+    try {
+      // Find or create subject
+      let subjects = (await api.getSubjects(category)).items;
+      let subject = subjects.find(s => s.value === subjectValue);
+      if (!subject) {
+        subject = await api.createSubject(category, subjectValue);
+      }
+
+      if (isEvent) {
+        const tags = tagsStr ? tagsStr.split(',').map(t => t.trim()).filter(Boolean) : [];
+        await api.createEvent(subject.identifier.uuid, value, tags);
+      } else {
+        await api.createNote(subject.identifier.uuid, value);
+      }
+
+      // Clear form and refresh
+      (document.getElementById('qa-value') as HTMLInputElement).value = '';
+      (document.getElementById('qa-tags') as HTMLInputElement).value = '';
+      msg.innerHTML = `<div class="alert alert-success alert-dismissible py-1 small">${isEvent ? 'Event' : 'Note'} added to ${category} / ${subjectValue}</div>`;
+      setTimeout(() => { msg.innerHTML = ''; }, 3000);
+      await loadTimeline();
+      await loadCategories();
+      await populateQuickAddCategories();
+    } catch (err) {
+      msg.innerHTML = `<div class="alert alert-danger py-1 small">Failed: ${(err as Error).message}</div>`;
+    }
+  });
 
   // Add category form
   document.getElementById('form-add-category')!.addEventListener('submit', async (e) => {
@@ -194,16 +285,14 @@ function bindDashboard(): void {
     const input = document.getElementById('new-category-name') as HTMLInputElement;
     const name = input.value.trim();
     if (!name) return;
-    // Creating a subject with the category causes the category to appear.
-    // But we want to just select it first — the category exists implicitly when a subject is created.
-    // So just select it and show the subject panel.
     input.value = '';
     currentCategory = name;
     showSubjectPanel(name);
     await loadCategories();
+    await populateQuickAddCategories();
   });
 
-  // Back button
+  // Back button — return to home view
   document.getElementById('btn-back-to-subjects')!.addEventListener('click', () => {
     document.getElementById('entity-detail')!.classList.add('d-none');
     document.getElementById('subject-panel')!.classList.remove('d-none');
@@ -220,6 +309,89 @@ function bindDashboard(): void {
       document.getElementById('detail-notes')!.classList.toggle('d-none', tab !== 'notes');
     });
   });
+
+  async function populateQuickAddCategories(): Promise<void> {
+    try {
+      cachedCategories = await api.getCategories();
+      const datalist = document.getElementById('qa-categories')!;
+      datalist.innerHTML = cachedCategories.map(c => `<option value="${c.value}">`).join('');
+    } catch { /* ignore */ }
+  }
+
+  async function populateQuickAddSubjects(): Promise<void> {
+    const category = (document.getElementById('qa-category') as HTMLInputElement).value.trim();
+    const datalist = document.getElementById('qa-subjects')!;
+    if (!category) { datalist.innerHTML = ''; return; }
+    try {
+      const page = await api.getSubjects(category);
+      datalist.innerHTML = page.items.map(s => `<option value="${s.value}">`).join('');
+    } catch { datalist.innerHTML = ''; }
+  }
+
+  async function loadTimeline(): Promise<void> {
+    const container = document.getElementById('timeline')!;
+    try {
+      const [events, notes] = await Promise.all([
+        api.getRecentEvents(20),
+        api.getRecentNotes(20),
+      ]);
+
+      type TimelineItem = { type: 'event' | 'note'; label: string; value: string; timestamp: string; tags: string[]; subjectId: string; category: string; subject: string };
+      const items: TimelineItem[] = [];
+
+      for (const e of events.items) {
+        items.push({
+          type: 'event',
+          label: `${e.subject.category.value} / ${e.subject.value}`,
+          value: e.value,
+          timestamp: e.timestamp.timestamp,
+          tags: e.tags.map(t => t.value),
+          subjectId: e.subject.identifier.uuid,
+          category: e.subject.category.value,
+          subject: e.subject.value,
+        });
+      }
+      for (const n of notes.items) {
+        items.push({
+          type: 'note',
+          label: n.subjectIdentifier.uuid,
+          value: n.value,
+          timestamp: n.timestamp.timestamp,
+          tags: n.tags.map(t => t.value),
+          subjectId: n.subjectIdentifier.uuid,
+          category: '',
+          subject: '',
+        });
+      }
+
+      items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      if (items.length === 0) {
+        container.innerHTML = '<p class="text-muted">No activity yet. Use the quick-add form above or browse categories in the sidebar.</p>';
+        return;
+      }
+
+      container.innerHTML = `<div class="list-group">
+        ${items.slice(0, 30).map(item => {
+          const badge = item.type === 'event'
+            ? '<span class="badge bg-primary me-2">Event</span>'
+            : '<span class="badge bg-secondary me-2">Note</span>';
+          const tagStr = item.tags.length ? ` <small class="text-muted">[${item.tags.join(', ')}]</small>` : '';
+          const time = new Date(item.timestamp).toLocaleString();
+          const label = item.type === 'event' ? item.label : item.label.substring(0, 8) + '...';
+          return `<div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>${badge}<strong>${item.value}</strong>${tagStr}</div>
+              <small class="text-muted text-nowrap ms-2">${time}</small>
+            </div>
+            <small class="text-muted">${item.type === 'event' ? item.label : ''}</small>
+          </div>`;
+        }).join('')}
+      </div>`;
+    } catch {
+      container.innerHTML = '<p class="text-danger small">Failed to load recent activity</p>';
+    }
+  }
 
   async function loadCategories(): Promise<void> {
     const list = document.getElementById('category-list')!;
@@ -253,7 +425,7 @@ function bindDashboard(): void {
   }
 
   function showSubjectPanel(category: string): void {
-    document.getElementById('dashboard-welcome')!.classList.add('d-none');
+    document.getElementById('dashboard-home')!.classList.add('d-none');
     document.getElementById('entity-detail')!.classList.add('d-none');
     const panel = document.getElementById('subject-panel')!;
     panel.classList.remove('d-none');

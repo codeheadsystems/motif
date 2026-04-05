@@ -48,6 +48,12 @@ public interface NoteDao {
   int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
 
   @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
+      + "ORDER BY n.timestamp DESC LIMIT :limit OFFSET :offset")
+  List<Note> findRecentByOwner(@Bind("ownerUuid") UUID ownerUuid,
+                                @Bind("limit") int limit,
+                                @Bind("offset") int offset);
+
+  @SqlQuery(SELECT + " WHERE n.owner_uuid = :ownerUuid "
       + "AND n.subject_uuid = :subjectUuid ORDER BY n.timestamp "
       + "LIMIT :limit OFFSET :offset")
   List<Note> findByOwnerAndSubject(@Bind("ownerUuid") UUID ownerUuid,
