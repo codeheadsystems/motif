@@ -74,7 +74,11 @@ document.getElementById('form-change-password')!.addEventListener('submit', asyn
     (document.getElementById('cp-new-pass') as HTMLInputElement).value = '';
     (document.getElementById('cp-confirm-pass') as HTMLInputElement).value = '';
   } catch (err) {
-    msg.innerHTML = `<div class="alert alert-danger py-1 small">${(err as Error).message}</div>`;
+    const rawMsg = (err as Error).message ?? String(err);
+    const userMsg = rawMsg.includes('recoverEnvelope') || rawMsg.includes('auth tag')
+      ? 'Current password is incorrect'
+      : rawMsg;
+    msg.innerHTML = `<div class="alert alert-danger py-1 small">${userMsg}</div>`;
   }
 });
 
