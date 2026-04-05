@@ -74,10 +74,7 @@ document.getElementById('form-change-password')!.addEventListener('submit', asyn
     (document.getElementById('cp-new-pass') as HTMLInputElement).value = '';
     (document.getElementById('cp-confirm-pass') as HTMLInputElement).value = '';
   } catch (err) {
-    const message = (err as Error).name === 'OpaqueAuthenticationError'
-      ? 'Current password is incorrect'
-      : (err as Error).message;
-    msg.innerHTML = `<div class="alert alert-danger py-1 small">${message}</div>`;
+    msg.innerHTML = `<div class="alert alert-danger py-1 small">${(err as Error).message}</div>`;
   }
 });
 

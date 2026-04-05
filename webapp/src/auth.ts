@@ -30,7 +30,12 @@ export async function changePassword(oldPassword: string, newPassword: string): 
   if (!credId) throw new Error('Cannot determine credential ID');
   const c = await getClient();
   // Verify the old password by authenticating — throws if wrong
-  const freshToken = await c.authenticate(credId, oldPassword);
+  let freshToken: string;
+  try {
+    freshToken = await c.authenticate(credId, oldPassword);
+  } catch {
+    throw new Error('Current password is incorrect');
+  }
   token = freshToken;
   sessionStorage.setItem(TOKEN_KEY, token);
   // Old password verified — proceed with change
