@@ -1,3 +1,11 @@
+import { isLoggedIn, validateToken } from './auth';
 import { render } from './app';
 
-render();
+async function init(): Promise<void> {
+  if (isLoggedIn()) {
+    await validateToken();
+  }
+  render();
+}
+
+init();

@@ -1,9 +1,9 @@
-import { getToken } from './auth';
+import { getToken, logout } from './auth';
 
 async function apiFetch(path: string, options?: RequestInit): Promise<Response> {
   const token = getToken();
   if (!token) throw new Error('Not authenticated');
-  return fetch(path, {
+  const res = await fetch(path, {
     ...options,
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -11,6 +11,12 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
       ...options?.headers,
     },
   });
+  if (res.status === 401) {
+    logout();
+    window.location.reload();
+    throw new Error('Session expired');
+  }
+  return res;
 }
 
 export interface Owner {

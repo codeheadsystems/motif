@@ -1,14 +1,84 @@
-import { isLoggedIn, getCredentialId, logout } from './auth';
+import { isLoggedIn, getCredentialId, logout, changePassword, getToken } from './auth';
 import * as api from './api';
+
+declare const bootstrap: { Modal: new (el: Element) => { show(): void; hide(): void } };
 
 const content = document.getElementById('app-content')!;
 const navUser = document.getElementById('nav-user')!;
 const navUsername = document.getElementById('nav-username')!;
-const btnLogout = document.getElementById('btn-logout')!;
 
-btnLogout.addEventListener('click', () => {
+// Logout
+document.getElementById('btn-logout')!.addEventListener('click', () => {
   logout();
   render();
+});
+
+// Profile modal
+document.getElementById('btn-profile')!.addEventListener('click', () => {
+  const credId = getCredentialId() ?? 'Unknown';
+  const token = getToken();
+  let jwtInfo = '';
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const issuedAt = payload.iat ? new Date(payload.iat * 1000).toLocaleString() : 'N/A';
+      const expiresAt = payload.exp ? new Date(payload.exp * 1000).toLocaleString() : 'N/A';
+      jwtInfo = `
+        <tr><td class="text-muted">Issued</td><td>${issuedAt}</td></tr>
+        <tr><td class="text-muted">Expires</td><td>${expiresAt}</td></tr>
+        <tr><td class="text-muted">Issuer</td><td>${payload.iss ?? 'N/A'}</td></tr>`;
+    } catch { /* ignore */ }
+  }
+  document.getElementById('profile-body')!.innerHTML = `
+    <table class="table table-sm mb-0">
+      <tbody>
+        <tr><td class="text-muted">Credential ID</td><td><code>${credId}</code></td></tr>
+        ${jwtInfo}
+      </tbody>
+    </table>`;
+  new bootstrap.Modal(document.getElementById('modal-profile')!).show();
+});
+
+// Change password modal
+document.getElementById('btn-change-password')!.addEventListener('click', () => {
+  (document.getElementById('cp-old-pass') as HTMLInputElement).value = '';
+  (document.getElementById('cp-new-pass') as HTMLInputElement).value = '';
+  (document.getElementById('cp-confirm-pass') as HTMLInputElement).value = '';
+  document.getElementById('cp-message')!.innerHTML = '';
+  new bootstrap.Modal(document.getElementById('modal-change-password')!).show();
+});
+
+document.getElementById('form-change-password')!.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('cp-message')!;
+  const oldPass = (document.getElementById('cp-old-pass') as HTMLInputElement).value;
+  const newPass = (document.getElementById('cp-new-pass') as HTMLInputElement).value;
+  const confirmPass = (document.getElementById('cp-confirm-pass') as HTMLInputElement).value;
+  if (!oldPass) {
+    msg.innerHTML = '<div class="alert alert-warning py-1 small">Current password is required</div>';
+    return;
+  }
+  if (newPass !== confirmPass) {
+    msg.innerHTML = '<div class="alert alert-warning py-1 small">New passwords do not match</div>';
+    return;
+  }
+  if (newPass.length < 1) {
+    msg.innerHTML = '<div class="alert alert-warning py-1 small">New password cannot be empty</div>';
+    return;
+  }
+  msg.innerHTML = '<div class="text-muted small">Verifying current password and changing...</div>';
+  try {
+    await changePassword(oldPass, newPass);
+    msg.innerHTML = '<div class="alert alert-success py-1 small">Password changed successfully</div>';
+    (document.getElementById('cp-old-pass') as HTMLInputElement).value = '';
+    (document.getElementById('cp-new-pass') as HTMLInputElement).value = '';
+    (document.getElementById('cp-confirm-pass') as HTMLInputElement).value = '';
+  } catch (err) {
+    const message = (err as Error).name === 'OpaqueAuthenticationError'
+      ? 'Current password is incorrect'
+      : (err as Error).message;
+    msg.innerHTML = `<div class="alert alert-danger py-1 small">${message}</div>`;
+  }
 });
 
 export function render(): void {
