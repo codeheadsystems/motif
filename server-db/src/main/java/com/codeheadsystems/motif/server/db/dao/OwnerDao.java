@@ -24,6 +24,12 @@ public interface OwnerDao {
   void upsert(@Bind("uuid") UUID uuid, @Bind("value") String value,
               @Bind("deleted") boolean deleted);
 
+  @SqlUpdate("INSERT INTO owners (uuid, value, deleted) "
+      + "VALUES (:uuid, :value, :deleted) "
+      + "ON CONFLICT (value) DO NOTHING")
+  void insertIfAbsentByValue(@Bind("uuid") UUID uuid, @Bind("value") String value,
+                             @Bind("deleted") boolean deleted);
+
   @SqlQuery("SELECT * FROM owners WHERE uuid = :uuid AND deleted = false")
   Optional<Owner> findByIdentifier(@Bind("uuid") UUID uuid);
 

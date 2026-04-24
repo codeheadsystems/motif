@@ -3,6 +3,7 @@ package com.codeheadsystems.motif.server.resource;
 import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.server.db.manager.OwnerManager;
 import com.codeheadsystems.motif.server.db.model.Owner;
+import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.slf4j.Logger;
@@ -22,12 +23,12 @@ public class OwnerResolver {
 
   public Owner resolve(HofmannPrincipal principal) {
     String credId = principal.credentialIdentifier();
-    return ownerManager.find(credId)
-        .orElseGet(() -> {
-          Owner owner = new Owner(credId);
-          ownerManager.store(owner);
-          AUDIT.info("owner.created credentialId={}", credId);
-          return owner;
-        });
+    Optional<Owner> existing = ownerManager.find(credId);
+    if (existing.isPresent()) {
+      return existing.get();
+    }
+    Owner owner = ownerManager.findOrCreate(credId);
+    AUDIT.info("owner.resolved credentialId={} uuid={}", credId, owner.identifier().uuid());
+    return owner;
   }
 }

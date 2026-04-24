@@ -1,7 +1,6 @@
 package com.codeheadsystems.motif.server.resource;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,16 +38,18 @@ class OwnerResolverTest {
     Owner result = ownerResolver.resolve(PRINCIPAL);
 
     assertThat(result).isSameAs(existing);
-    verify(ownerManager, never()).store(any());
+    verify(ownerManager, never()).findOrCreate("ALICE");
   }
 
   @Test
   void resolveCreatesOwnerWhenNotFound() {
+    Owner created = new Owner("ALICE");
     when(ownerManager.find("ALICE")).thenReturn(Optional.empty());
+    when(ownerManager.findOrCreate("ALICE")).thenReturn(created);
 
     Owner result = ownerResolver.resolve(PRINCIPAL);
 
-    assertThat(result.value()).isEqualTo("ALICE");
-    verify(ownerManager).store(any(Owner.class));
+    assertThat(result).isSameAs(created);
+    verify(ownerManager).findOrCreate("ALICE");
   }
 }

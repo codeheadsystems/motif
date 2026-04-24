@@ -14,6 +14,16 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
     window.location.reload();
     throw new Error('Session expired');
   }
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.clone().json();
+      detail = (body && (body.message || body.error)) ?? '';
+    } catch {
+      detail = await res.clone().text().catch(() => '');
+    }
+    throw new Error(`API ${res.status} ${path}${detail ? `: ${detail}` : ''}`);
+  }
   return res;
 }
 
@@ -68,6 +78,11 @@ export async function getCategories(): Promise<{ value: string }[]> {
 
 export async function getSubjects(category: string, page = 0, size = 50): Promise<Page<Subject>> {
   const res = await apiFetch(`/api/subjects?category=${encodeURIComponent(category)}&page=${page}&size=${size}`);
+  return res.json();
+}
+
+export async function getSubject(id: string): Promise<Subject> {
+  const res = await apiFetch(`/api/subjects/${id}`);
   return res.json();
 }
 

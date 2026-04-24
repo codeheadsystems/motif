@@ -40,6 +40,20 @@ public class OwnerManager {
     return ownerDao.findByValue(value.strip().toUpperCase());
   }
 
+  /**
+   * Atomically find-or-create an Owner by value. Safe under concurrent callers:
+   * parallel requests for the same (not-yet-existing) owner will converge on
+   * one row rather than racing to insert distinct UUIDs that collide on the
+   * `value` unique constraint.
+   */
+  public Owner findOrCreate(String value) {
+    Owner candidate = new Owner(value);
+    ownerDao.insertIfAbsentByValue(candidate.identifier().uuid(), candidate.value(), false);
+    return ownerDao.findByValue(candidate.value())
+        .orElseThrow(() -> new IllegalStateException(
+            "owner missing immediately after insertIfAbsent: " + candidate.value()));
+  }
+
   public Optional<Owner> find(String value, boolean includeSoftDeleted) {
     String normalized = value.strip().toUpperCase();
     if (includeSoftDeleted) {
