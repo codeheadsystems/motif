@@ -20,17 +20,46 @@ The fastest way to get Motif running locally:
 
 This compiles all modules, builds the webapp (Vite), bundles static assets into the server JAR, and runs all tests.
 
-### 2. Start the system
+### 2. Create your local `.env`
+
+`docker-compose` reads OPAQUE/JWT secrets from a `.env` file (gitignored). A template with placeholder values lives at `.env.example`:
+
+```bash
+cp .env.example .env
+# optional but recommended: replace the placeholders with real randoms
+for v in MOTIF_OPAQUE_SERVER_KEY_SEED_HEX MOTIF_OPAQUE_OPRF_SEED_HEX \
+         MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX MOTIF_JWT_SECRET_HEX; do
+  echo "$v=$(openssl rand -hex 32)"
+done > .env
+```
+
+Never commit `.env`. In production these values come from AWS Secrets Manager.
+
+### 3. Start the system
 
 ```bash
 docker compose up --build
 ```
 
-This starts PostgreSQL and the Motif server. On first launch, the entrypoint automatically runs `init-db` to create tables and generate OPAQUE keys, then starts the server.
+This starts PostgreSQL and the Motif server. The entrypoint runs `init-db` to apply Flyway migrations, then starts the server with the secrets from `.env`.
 
-### 3. Open the webapp
+### 4. Open the webapp
 
 Navigate to `http://localhost:8080/app` to register a user and log in.
+
+### Optional: LocalStack for AWS development
+
+The compose file includes an opt-in LocalStack service for developing CDK infrastructure and any future AWS SDK integrations locally (S3 attachments, Secrets Manager, etc.):
+
+```bash
+docker compose --profile aws up -d localstack
+cd infra
+npm install
+npm run bootstrap:local
+npm run deploy:local
+```
+
+LocalStack Community covers S3, IAM, Secrets Manager, CloudFormation, CloudWatch Logs. Aurora, ECS Fargate, CloudFront, and X-Ray require LocalStack Pro and are validated against real AWS only. See `infra/README.md` for details.
 
 ### Stopping
 
@@ -74,8 +103,12 @@ databaseUrl: jdbc:postgresql://localhost:5432/motif
 databaseUser: motif
 databasePassword: motif
 
-# OPAQUE settings — keys are loaded from the database.
-# These non-secret defaults are fine for local development.
+# Secrets read from env vars (see ### 3 below)
+serverKeySeedHex: ${MOTIF_OPAQUE_SERVER_KEY_SEED_HEX}
+oprfSeedHex: ${MOTIF_OPAQUE_OPRF_SEED_HEX}
+oprfMasterKeyHex: ${MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX}
+jwtSecretHex: ${MOTIF_JWT_SECRET_HEX}
+
 context: motif-local-v1
 allowIdentityKsf: true
 argon2MemoryKib: 0
@@ -83,21 +116,30 @@ argon2MemoryKib: 0
 
 Setting `argon2MemoryKib: 0` with `allowIdentityKsf: true` disables Argon2 key stretching for fast local development. **Do not use this in production.**
 
-### 3. Build the project
+### 3. Export secrets
+
+```bash
+export MOTIF_OPAQUE_SERVER_KEY_SEED_HEX=$(openssl rand -hex 32)
+export MOTIF_OPAQUE_OPRF_SEED_HEX=$(openssl rand -hex 32)
+export MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX=$(openssl rand -hex 32)
+export MOTIF_JWT_SECRET_HEX=$(openssl rand -hex 32)
+```
+
+### 4. Build the project
 
 ```bash
 ./gradlew build
 ```
 
-### 4. Initialize the database
+### 5. Initialize the database
 
 ```bash
 java -jar server/build/libs/server.jar init-db config.yml
 ```
 
-This runs Flyway migrations to create all tables, then generates and stores random OPAQUE cryptographic keys in the `configuration_values` table. It is safe to re-run — existing keys are not overwritten.
+This applies Flyway migrations to create all tables. It is safe to re-run.
 
-### 5. Start the server
+### 6. Start the server
 
 ```bash
 java -jar server/build/libs/server.jar server config.yml
@@ -105,7 +147,7 @@ java -jar server/build/libs/server.jar server config.yml
 
 The server starts on `http://localhost:8080`. The webapp is served at `http://localhost:8080/app`.
 
-### 6. (Optional) Webapp dev mode
+### 7. (Optional) Webapp dev mode
 
 For live-reload during frontend development:
 
@@ -118,49 +160,36 @@ This starts a Vite dev server at `http://localhost:5173` that proxies `/opaque`,
 
 ## Configuration
 
-```yaml
-server:
-  applicationConnectors:
-    - type: http
-      port: 8080
-  adminConnectors:
-    - type: http
-      port: 8081
+Dropwizard reads YAML with `${ENV_VAR}` substitution. Secrets (OPAQUE seeds, OPRF master key, JWT signing secret) live in environment variables — never in YAML, never in the database.
 
-databaseUrl: jdbc:postgresql://localhost:5432/motif
-databaseUser: motif
-databasePassword: motif
+Required secret env vars (each is a 32-byte hex string; generate with `openssl rand -hex 32`):
 
-# OPAQUE settings loaded from database — do not put keys here.
-# Optional overrides (non-secret values only):
-# opaqueCipherSuite: P256_SHA256
-# context: motif-opaque-v1
-# allowIdentityKsf: false
-```
+| Env var | Purpose |
+|---|---|
+| `MOTIF_OPAQUE_SERVER_KEY_SEED_HEX` | OPAQUE server AKE key seed |
+| `MOTIF_OPAQUE_OPRF_SEED_HEX` | OPRF seed |
+| `MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX` | OPRF master key (non-zero P-256 scalar) |
+| `MOTIF_JWT_SECRET_HEX` | JWT HMAC-SHA256 signing secret |
 
-**Important:** Currently all cryptographic keys (server key seed, OPRF seed, JWT secret, etc.) are stored in the database `configuration_values` table — never in YAML or any file checked into git.
-This will change in the future as we add support for external HSM or vaults and KMS providers, but for now the `init-db` command will generate and store random keys for you.
+If any of these are missing or blank at startup, the server fails fast with a message listing what's missing.
 
-The reason it is bad to store these keys here is it removes the advantage of the
-OPAQUE protocol being resistant to server breaches — if an attacker gets read access to the database, they can steal the keys and perform offline password guessing attacks
-which is exactly what we want to avoid. But for development purposes, we have it
-here until we add support for external vaults.
+**In production**: values come from AWS Secrets Manager and are injected as ECS task env vars.
+
+**In docker-compose**: values come from `.env` (gitignored), template in `.env.example`.
+
+**In tests**: values are randomly generated per JVM and passed via Dropwizard `ConfigOverride`.
+
+The `configuration_values` database table is retained for non-secret runtime configuration (feature flags, tunable thresholds, defaults). Adding secrets to it is prohibited — code review should reject any such changes.
 
 ## Database Initialization
 
-Before starting the server for the first time, run the `init-db` command to generate and store random keys:
+Before starting the server for the first time, run the `init-db` command:
 
 ```bash
 java -jar server/build/libs/server.jar init-db config.yml
 ```
 
-This will:
-1. Run Flyway migrations to create all tables
-2. Generate cryptographically random 256-bit keys for OPAQUE and JWT
-3. Store them in the `configuration_values` table
-4. Skip any keys that already exist (safe to re-run)
-
-**The server will not start if the database has not been initialized.** You will see an error listing the missing configuration keys.
+This applies Flyway migrations to create all tables. Safe to re-run after new migrations are added.
 
 ## OPAQUE Authentication Endpoints
 
@@ -216,15 +245,11 @@ The OPAQUE stores (credentials, sessions, pending sessions) are backed by Postgr
 
 **DO NOT RELEASE THIS APPLICATION EVER WITHOUT FIXING THIS!**
 
-### HSM or vault support for OPAQUE keys
-When this application is nearing completion, the OPAQUE keys need to be in a storage
-system separate from the database. 
-
 ### HTTPS in production
 
-HTTPS in production must be enforced in production to protect the JWT in transit. This can be done via a reverse proxy (e.g. Nginx) or by configuring Dropwizard to use TLS directly.
+HTTPS must be enforced in production to protect the JWT in transit. Production plan: TLS termination at the AWS Application Load Balancer (see `docs/technical_architecture.md`).
 
 ### Database credentials
 
-The database credentials are currently in plaintext config.
+Database credentials are currently in plaintext YAML in dev. Production plan: AWS Secrets Manager, injected as ECS task env vars at startup.
 

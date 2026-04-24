@@ -12,11 +12,16 @@ Findings from security review conducted 2026-04-05.
   **Files:** `server-db/.../manager/SubjectManager.java:66-79`
   **Fix:** Use `findByOwnerAndIdentifier()` in the update transaction.
 
-- [ ] **OPAQUE keys stored in PostgreSQL**
-  All cryptographic secrets (`serverKeySeedHex`, `oprfSeedHex`, `jwtSecretHex`) are in the
-  `configuration_values` table. Database compromise = full auth compromise.
-  README already warns: "DO NOT RELEASE THIS APPLICATION EVER WITHOUT FIXING THIS!"
-  **Fix:** Move to external vault (HSM, AWS KMS, HashiCorp Vault). Requires architectural change.
+- [x] **OPAQUE keys stored in PostgreSQL** — resolved in Phase 0 (2026-04-24)
+  Secrets (`serverKeySeedHex`, `oprfSeedHex`, `oprfMasterKeyHex`, `jwtSecretHex`) now sourced
+  from environment variables via Dropwizard's `EnvironmentVariableSubstitutor`:
+  - Dev: `.env` file (gitignored) loaded by docker-compose; template in `.env.example`
+  - Prod: AWS Secrets Manager, injected as ECS task env vars
+  - Tests: `ConfigOverride` with per-JVM random values (see `TestSecrets.java`)
+  `SetupBundle.verifyRequiredSecrets()` fails fast if any secret is blank.
+  Flyway migration `V12__delete_configuration_value_secrets.sql` removes the secret rows
+  from existing databases. The `configuration_values` table is retained for non-secret
+  runtime configuration; adding secrets back to it is explicitly prohibited.
 
 ## HIGH
 
@@ -92,3 +97,31 @@ Findings from security review conducted 2026-04-05.
 - [ ] **Database credentials in plaintext config**
   `docker/config.yml` has `databasePassword: motif` in cleartext.
   **Fix:** Use environment variables or secrets management in production.
+
+## Phase 0 follow-ups (tracked, non-blocking)
+
+- [ ] **Stale release workflows**
+  `.github/workflows/manual-release.yml` and `release.yml` reference non-existent
+  `hofmann-*` modules (copy-paste from the hofmann-elimination repo). They will fail
+  if invoked. Motif is an application, not a library — these should either be deleted
+  or rewritten to publish the Docker image to ECR instead of jars to Maven Central.
+
+- [ ] **CDK app/database stacks not deployable on LocalStack Community**
+  `motif-dev-database` (Aurora) and `motif-dev-application` (ECS Fargate) synth correctly
+  but require LocalStack Pro or real AWS to deploy. `motif-dev-network`, `motif-dev-storage`,
+  `motif-dev-secrets` deploy on LocalStack Community.
+
+- [ ] **Cross-stack SG wiring between Aurora and Fargate**
+  `motif-dev-application` does not currently open the Aurora security group for the ECS
+  service (removed in Phase 0 to break a dependency cycle). Before real-AWS deploy, add a
+  dedicated `dbAccess` security group in the database stack that the application stack
+  attaches to the Fargate service.
+
+- [ ] **HTTPS at the ALB**
+  `motif-dev-application` exposes HTTP on port 80. Once a domain is registered, add an
+  ACM certificate and switch the listener to HTTPS on 443 with HTTP→HTTPS redirect.
+
+- [ ] **Secrets Manager entries are empty on deploy**
+  CDK creates the four secret entries but leaves values blank. Populate post-deploy via
+  `aws secretsmanager put-secret-value` (commands in `infra/README.md`). Consider a
+  bootstrap Lambda that generates them on stack creation if manual steps are error-prone.

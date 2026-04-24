@@ -11,6 +11,15 @@ databaseUrl: jdbc:postgresql://db:5432/motif
 databaseUser: motif
 databasePassword: motif
 
+# OPAQUE and JWT secrets — sourced from environment variables.
+# In dev (docker-compose) values are set in docker-compose.yml.
+# In prod values are pulled from AWS Secrets Manager and injected as env vars.
+# Generate new values with: openssl rand -hex 32
+serverKeySeedHex: ${MOTIF_OPAQUE_SERVER_KEY_SEED_HEX}
+oprfSeedHex: ${MOTIF_OPAQUE_OPRF_SEED_HEX}
+oprfMasterKeyHex: ${MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX}
+jwtSecretHex: ${MOTIF_JWT_SECRET_HEX}
+
 context: motif-opaque-v1
 allowIdentityKsf: false
 argon2MemoryKib: 16384

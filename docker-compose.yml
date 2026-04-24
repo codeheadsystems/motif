@@ -15,6 +15,28 @@ services:
       timeout: 5s
       retries: 10
 
+  # LocalStack emulates AWS services for CDK dev. Community image covers S3, IAM,
+  # Secrets Manager, CloudFormation, CloudWatch Logs, SQS, DynamoDB.
+  # Aurora, ECS, CloudFront, X-Ray are Pro-only and must be validated against real AWS.
+  # Opt in with: docker compose --profile aws up
+  localstack:
+    image: localstack/localstack:latest
+    profiles: ["aws"]
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,iam,secretsmanager,cloudformation,logs,sts,ec2,ecr,sqs,dynamodb
+      DEBUG: 0
+      PERSISTENCE: 1
+    volumes:
+      - motif-localstack:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   server:
     build: .
     ports:
@@ -23,6 +45,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # OPAQUE/JWT secrets pulled from .env (see .env.example).
+    # In prod these come from AWS Secrets Manager, injected as ECS task env vars.
+    environment:
+      MOTIF_OPAQUE_SERVER_KEY_SEED_HEX: ${MOTIF_OPAQUE_SERVER_KEY_SEED_HEX:?set in .env, see .env.example}
+      MOTIF_OPAQUE_OPRF_SEED_HEX: ${MOTIF_OPAQUE_OPRF_SEED_HEX:?set in .env, see .env.example}
+      MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX: ${MOTIF_OPAQUE_OPRF_MASTER_KEY_HEX:?set in .env, see .env.example}
+      MOTIF_JWT_SECRET_HEX: ${MOTIF_JWT_SECRET_HEX:?set in .env, see .env.example}
+      # AWS SDK endpoint override: when set, the app directs S3/Secrets Manager/etc. calls
+      # to LocalStack instead of real AWS. Unset in prod. Opt in with the "aws" profile.
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
 
 volumes:
   motif-pgdata:
+  motif-localstack:

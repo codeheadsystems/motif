@@ -1,0 +1,35 @@
+{
+  "name": "motif-infra",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AWS CDK infrastructure for Motif (TypeScript)",
+  "bin": {
+    "motif-infra": "bin/motif.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "synth": "cdk synth",
+    "synth:all": "cdk synth --all",
+    "deploy:local": "cdklocal deploy --all --require-approval never",
+    "bootstrap:local": "cdklocal bootstrap",
+    "destroy:local": "cdklocal destroy --all --force",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^22.10.0",
+    "aws-cdk": "^2.170.0",
+    "aws-cdk-local": "^2.18.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21"
+  }
+}

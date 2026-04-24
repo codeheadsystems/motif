@@ -12,6 +12,8 @@ import com.codeheadsystems.motif.server.store.JdbiCredentialStore;
 import com.codeheadsystems.motif.server.store.JdbiPendingSessionStore;
 import com.codeheadsystems.motif.server.store.JdbiSessionStore;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.dropwizard.configuration.EnvironmentVariableSubstitutor;
+import io.dropwizard.configuration.SubstitutingSourceProvider;
 import io.dropwizard.core.Application;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
@@ -39,9 +41,15 @@ public class MotifApplication extends Application<MotifConfiguration> {
 
   @Override
   public void initialize(Bootstrap<MotifConfiguration> bootstrap) {
+    // Enable ${ENV_VAR} substitution in YAML. Non-strict: undefined vars become empty strings,
+    // and SetupBundle catches them explicitly — keeps tests working with ConfigOverride.
+    bootstrap.setConfigurationSourceProvider(
+        new SubstitutingSourceProvider(
+            bootstrap.getConfigurationSourceProvider(),
+            new EnvironmentVariableSubstitutor(false)));
     bootstrap.getObjectMapper().disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     bootstrap.addCommand(new InitDatabaseCommand());
-    // SetupBundle runs first — initializes JDBI, stores, and loads DB config
+    // SetupBundle runs first — validates secrets, initializes JDBI and stores
     bootstrap.addBundle(setupBundle);
     // HofmannBundle runs second — stores are already initialized
     bootstrap.addBundle(new HofmannBundle<>(credentialStore, sessionStore, null));

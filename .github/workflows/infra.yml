@@ -1,0 +1,51 @@
+name: Infra (CDK synth + tests)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+
+jobs:
+  synth:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Synth
+        run: npx cdk synth --all --quiet
+
+      - name: Test
+        run: npm test
+
+      - name: Upload synthesized templates
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-templates
+          path: infra/cdk.out/*.template.json
+          retention-days: 14

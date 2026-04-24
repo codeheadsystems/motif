@@ -11,3 +11,6 @@ node_modules/
 
 # Generated webapp assets (built by Vite, not checked in)
 server/src/main/resources/assets/
+
+# Local dev environment (OPAQUE/JWT secrets for docker-compose)
+.env
