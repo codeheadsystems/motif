@@ -9,6 +9,7 @@ import com.codeheadsystems.motif.server.db.dao.PatternDao;
 import com.codeheadsystems.motif.server.db.dao.ProjectDao;
 import com.codeheadsystems.motif.server.db.dao.SubjectDao;
 import com.codeheadsystems.motif.server.db.dao.TagsDao;
+import com.codeheadsystems.motif.server.db.dao.WorkflowDao;
 import dagger.Module;
 import dagger.Provides;
 import javax.inject.Singleton;
@@ -83,5 +84,11 @@ public class MotifModule {
   @Singleton
   ProjectDao projectDao() {
     return jdbi.onDemand(ProjectDao.class);
+  }
+
+  @Provides
+  @Singleton
+  WorkflowDao workflowDao() {
+    return jdbi.onDemand(WorkflowDao.class);
   }
 }

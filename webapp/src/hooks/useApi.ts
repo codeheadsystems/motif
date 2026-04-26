@@ -90,6 +90,17 @@ export function useProject(id: string | null) {
   );
 }
 
+export function useWorkflows() {
+  return useResource<api.Page<api.Workflow>>(() => api.getWorkflows(), []);
+}
+
+export function useWorkflow(id: string | null) {
+  return useResource<api.Workflow | null>(
+    () => (id ? api.getWorkflow(id) : Promise.resolve(null)),
+    [id],
+  );
+}
+
 export function usePatterns(limit = 5) {
   return useResource<api.Page<api.Pattern>>(() => api.getPatterns(limit), [limit]);
 }

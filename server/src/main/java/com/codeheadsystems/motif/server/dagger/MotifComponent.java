@@ -10,6 +10,7 @@ import com.codeheadsystems.motif.server.resource.OwnerResource;
 import com.codeheadsystems.motif.server.resource.PatternResource;
 import com.codeheadsystems.motif.server.resource.ProjectResource;
 import com.codeheadsystems.motif.server.resource.SubjectResource;
+import com.codeheadsystems.motif.server.resource.WorkflowResource;
 import dagger.Component;
 import javax.inject.Singleton;
 
@@ -32,6 +33,8 @@ public interface MotifComponent {
   PatternResource patternResource();
 
   ProjectResource projectResource();
+
+  WorkflowResource workflowResource();
 
   PatternDetectionManager patternDetectionManager();
 

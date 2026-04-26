@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { RefreshCw, Workflow as WorkflowIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import * as api from '@/api';
-import { usePatterns } from '@/hooks/useApi';
+import { useOwner, usePatterns } from '@/hooks/useApi';
 
 const HOUR = 3600;
 const DAY = 86400;
@@ -41,7 +42,23 @@ function describePeriod(p: api.PeriodClassification): string {
 
 export function DiscoveredPatterns() {
   const { data, loading, refetch } = usePatterns(5);
+  const { data: owner } = useOwner();
+  const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const isPremium = owner != null && api.tierSatisfies(owner.tier, 'PREMIUM');
+
+  async function handleMakeWorkflow(patternId: string) {
+    setConvertingId(patternId);
+    try {
+      const workflow = await api.createWorkflowFromPattern(patternId);
+      navigate(`/w/${workflow.identifier.uuid}`);
+    } catch (err) {
+      console.error('from-pattern failed', err);
+    } finally {
+      setConvertingId(null);
+    }
+  }
 
   async function handleRecompute() {
     setRefreshing(true);
@@ -105,8 +122,23 @@ export function DiscoveredPatterns() {
                     ({cadence}, ×{p.occurrenceCount})
                   </span>
                 </span>
-                <span className="shrink-0 rounded-sm bg-secondary/70 px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-muted-foreground">
-                  next {relativeWhen(p.nextExpectedAt.timestamp)}
+                <span className="flex shrink-0 items-baseline gap-2">
+                  <span className="rounded-sm bg-secondary/70 px-2 py-0.5 font-mono text-[10px] tracking-[0.12em] text-muted-foreground">
+                    next {relativeWhen(p.nextExpectedAt.timestamp)}
+                  </span>
+                  {isPremium && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleMakeWorkflow(p.identifier.uuid)}
+                      disabled={convertingId === p.identifier.uuid}
+                      title="Convert this pattern into a workflow"
+                      className="h-6 gap-1 px-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+                    >
+                      <WorkflowIcon className="size-3" strokeWidth={2.25} />
+                      Workflow
+                    </Button>
+                  )}
                 </span>
               </li>
             );

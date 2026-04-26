@@ -57,6 +57,10 @@ public interface PatternDao {
                             @Bind("limit") int limit,
                             @Bind("offset") int offset);
 
+  @SqlQuery(SELECT + " WHERE p.owner_uuid = :ownerUuid AND p.uuid = :uuid")
+  java.util.Optional<Pattern> findByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid,
+                                                        @Bind("uuid") UUID uuid);
+
   @SqlUpdate("DELETE FROM patterns WHERE owner_uuid = :ownerUuid")
   int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
 

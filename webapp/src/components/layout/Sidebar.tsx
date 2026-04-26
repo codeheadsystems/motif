@@ -6,7 +6,7 @@ import { CategoryIcon } from '@/components/CategoryIcon';
 import { cn } from '@/lib/utils';
 import * as api from '@/api';
 import { useCategoriesContext } from '@/hooks/useCategoriesContext';
-import { useOwner, useProjects } from '@/hooks/useApi';
+import { useOwner, useProjects, useWorkflows } from '@/hooks/useApi';
 
 const DEFAULT_NEW_COLOR = '#9CA3AF';
 const DEFAULT_NEW_ICON = 'tag';
@@ -14,8 +14,9 @@ const DEFAULT_NEW_ICON = 'tag';
 export function Sidebar() {
   const { data: categoriesPage, loading, refetch } = useCategoriesContext();
   const { data: owner } = useOwner();
-  const { categoryId: activeCategoryId, projectId: activeProjectId } =
-    useParams<{ categoryId: string; projectId: string }>();
+  const { categoryId: activeCategoryId, projectId: activeProjectId,
+    workflowId: activeWorkflowId } =
+    useParams<{ categoryId: string; projectId: string; workflowId: string }>();
   const navigate = useNavigate();
   const [newCategory, setNewCategory] = useState('');
   const [newProject, setNewProject] = useState('');
@@ -25,6 +26,8 @@ export function Sidebar() {
   const isPremium = owner != null && api.tierSatisfies(owner.tier, 'PREMIUM');
   const { data: projectsPage, refetch: refetchProjects } = useProjects();
   const projects = projectsPage?.items ?? [];
+  const { data: workflowsPage } = useWorkflows();
+  const workflows = workflowsPage?.items ?? [];
 
   async function handleAddCategory(e: FormEvent) {
     e.preventDefault();
@@ -137,6 +140,37 @@ export function Sidebar() {
         </>
       )}
 
+      {isPremium && (
+        <>
+          <Separator className="opacity-60" />
+          <div>
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                Workflows
+              </h2>
+              <span className="font-mono text-[10px] tabular-nums text-muted-foreground/70">
+                {String(workflows.length).padStart(2, '0')}
+              </span>
+            </div>
+            {workflows.length === 0 ? (
+              <p className="font-serif text-sm italic text-muted-foreground">
+                No workflows yet.
+              </p>
+            ) : (
+              <ul className="space-y-px">
+                {workflows.map((w) => (
+                  <SidebarWorkflow
+                    key={w.identifier.uuid}
+                    workflow={w}
+                    active={activeWorkflowId === w.identifier.uuid}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+
       <Separator className="opacity-60" />
 
       <div className="space-y-1.5 font-serif text-[13px] italic leading-relaxed text-muted-foreground/90">
@@ -178,6 +212,29 @@ function SidebarProject({ project, active }: { project: api.Project; active: boo
         <span className="font-mono text-[10px] tabular-nums text-muted-foreground/80">
           {project.status.slice(0, 1)}
         </span>
+      </Link>
+    </li>
+  );
+}
+
+function SidebarWorkflow({ workflow, active }: { workflow: api.Workflow; active: boolean }) {
+  return (
+    <li className="relative">
+      <Link
+        to={`/w/${workflow.identifier.uuid}`}
+        className={cn(
+          'group flex w-full items-baseline gap-2 py-1.5 pl-0 pr-0 text-left transition-colors outline-none',
+          active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground',
+        )}
+      >
+        {active && (
+          <span className="absolute -left-4 top-1/2 h-[14px] w-[2px] -translate-y-1/2 bg-primary" />
+        )}
+        <span className="font-serif text-[15px] leading-6">{workflow.name}</span>
+        <span
+          aria-hidden
+          className="relative top-[-2px] mx-1 flex-1 border-b border-dotted border-border/90"
+        />
       </Link>
     </li>
   );

@@ -6,6 +6,7 @@ import { DashboardHome } from './pages/DashboardHome';
 import { CategoryPage } from './pages/CategoryPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { SubjectDetailPage } from './pages/SubjectDetailPage';
+import { WorkflowPage } from './pages/WorkflowPage';
 import { useAuth } from './hooks/useAuth';
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -40,6 +41,7 @@ export function App() {
         <Route index element={<DashboardHome />} />
         <Route path="c/:categoryId" element={<CategoryPage />} />
         <Route path="p/:projectId" element={<ProjectPage />} />
+        <Route path="w/:workflowId" element={<WorkflowPage />} />
         <Route path="s/:subjectId" element={<SubjectDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

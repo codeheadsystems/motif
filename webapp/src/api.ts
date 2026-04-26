@@ -220,6 +220,69 @@ export async function deleteProject(id: string): Promise<void> {
   await apiFetch(`/api/projects/${id}`, { method: 'DELETE' });
 }
 
+// --- workflows (Premium) ---
+
+export interface WorkflowStep {
+  identifier: { uuid: string };
+  position: number;
+  name: string;
+  expectedDurationSeconds: number | null;
+  notes: string | null;
+}
+
+export interface Workflow {
+  ownerIdentifier: { uuid: string };
+  identifier: { uuid: string };
+  name: string;
+  description: string | null;
+  steps: WorkflowStep[];
+  createdAt: { timestamp: string };
+  updatedAt: { timestamp: string };
+}
+
+export interface WorkflowStepInput {
+  name: string;
+  expectedDurationSeconds?: number | null;
+  notes?: string | null;
+}
+
+export async function getWorkflows(page = 0, size = 100): Promise<Page<Workflow>> {
+  const res = await apiFetch(`/api/workflows?page=${page}&size=${size}`);
+  return res.json();
+}
+
+export async function getWorkflow(id: string): Promise<Workflow> {
+  const res = await apiFetch(`/api/workflows/${id}`);
+  return res.json();
+}
+
+export async function createWorkflow(name: string, description: string | null,
+                                     steps: WorkflowStepInput[]): Promise<Workflow> {
+  const res = await apiFetch('/api/workflows', {
+    method: 'POST',
+    body: JSON.stringify({ name, description, steps }),
+  });
+  return res.json();
+}
+
+export async function updateWorkflow(id: string, name: string, description: string | null,
+                                     steps: WorkflowStepInput[]): Promise<Workflow> {
+  const res = await apiFetch(`/api/workflows/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, description, steps }),
+  });
+  return res.json();
+}
+
+export async function deleteWorkflow(id: string): Promise<void> {
+  await apiFetch(`/api/workflows/${id}`, { method: 'DELETE' });
+}
+
+export async function createWorkflowFromPattern(patternId: string): Promise<Workflow> {
+  const res = await apiFetch(`/api/workflows/from-pattern/${patternId}`, { method: 'POST' });
+  return res.json();
+}
+
 // --- patterns ---
 
 export type PeriodClassification = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'OTHER';
