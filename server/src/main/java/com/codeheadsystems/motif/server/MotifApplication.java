@@ -67,7 +67,13 @@ public class MotifApplication extends Application<MotifConfiguration> {
     environment.jersey().register(component.categoryResource());
     environment.jersey().register(component.eventResource());
     environment.jersey().register(component.noteResource());
+    environment.jersey().register(component.patternResource());
     environment.jersey().register(new SessionResource());
+
+    // Background pattern detection sweep — replaces each owner's pattern set on a fixed cadence.
+    environment.lifecycle().manage(new PatternDetectionTask(
+        component.patternDetectionManager(),
+        configuration.getPatternDetectionIntervalSeconds()));
 
     // Suppress detailed Jetty error pages to avoid leaking server information
     ErrorHandler errorHandler = new ErrorHandler();

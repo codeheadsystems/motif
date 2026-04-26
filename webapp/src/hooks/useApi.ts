@@ -75,6 +75,10 @@ export function useNotes(subjectId: string | null) {
   );
 }
 
+export function usePatterns(limit = 5) {
+  return useResource<api.Page<api.Pattern>>(() => api.getPatterns(limit), [limit]);
+}
+
 export function useRecentActivity(size = 20) {
   return useResource(async () => {
     const [events, notes] = await Promise.all([

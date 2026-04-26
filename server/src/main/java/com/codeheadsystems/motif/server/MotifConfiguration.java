@@ -14,6 +14,13 @@ public class MotifConfiguration extends HofmannConfiguration {
   @JsonProperty
   private String databasePassword;
 
+  /**
+   * How often the pattern detector sweeps every owner. Default: 24h.
+   * Lower this in dev to dogfood the detector quickly.
+   */
+  @JsonProperty
+  private long patternDetectionIntervalSeconds = 86_400L;
+
   public String getDatabaseUrl() {
     return databaseUrl;
   }
@@ -24,5 +31,13 @@ public class MotifConfiguration extends HofmannConfiguration {
 
   public String getDatabasePassword() {
     return databasePassword;
+  }
+
+  public long getPatternDetectionIntervalSeconds() {
+    return patternDetectionIntervalSeconds;
+  }
+
+  public void setPatternDetectionIntervalSeconds(long patternDetectionIntervalSeconds) {
+    this.patternDetectionIntervalSeconds = patternDetectionIntervalSeconds;
   }
 }

@@ -49,6 +49,13 @@ public interface EventDao {
   @SqlUpdate("DELETE FROM events WHERE owner_uuid = :ownerUuid")
   int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
 
+  /**
+   * Returns every event for an owner, oldest-first. Used by PatternDetectionManager.
+   * Unbounded — fine for the v1 MVP; revisit when per-owner event counts get large.
+   */
+  @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid ORDER BY e.timestamp ASC")
+  List<Event> findAllByOwnerOrdered(@Bind("ownerUuid") UUID ownerUuid);
+
   @SqlQuery(SELECT_WITH_JOINS + " WHERE e.owner_uuid = :ownerUuid "
       + "ORDER BY e.timestamp DESC LIMIT :limit OFFSET :offset")
   List<Event> findRecentByOwner(@Bind("ownerUuid") UUID ownerUuid,

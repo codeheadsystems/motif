@@ -164,6 +164,35 @@ export async function deleteEvent(id: string): Promise<void> {
   await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
 }
 
+// --- patterns ---
+
+export type PeriodClassification = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'OTHER';
+
+export interface Pattern {
+  ownerIdentifier: { uuid: string };
+  subjectIdentifier: { uuid: string };
+  identifier: { uuid: string };
+  eventValue: string;
+  period: PeriodClassification;
+  intervalMeanSeconds: number;
+  occurrenceCount: number;
+  confidence: number;
+  lastSeenAt: { timestamp: string };
+  nextExpectedAt: { timestamp: string };
+  score: number;
+  detectedAt: { timestamp: string };
+}
+
+export async function getPatterns(limit = 5): Promise<Page<Pattern>> {
+  const res = await apiFetch(`/api/patterns?limit=${limit}`);
+  return res.json();
+}
+
+export async function recomputePatterns(limit = 5): Promise<Page<Pattern>> {
+  const res = await apiFetch(`/api/patterns/recompute?limit=${limit}`, { method: 'POST' });
+  return res.json();
+}
+
 // --- notes ---
 
 export async function getRecentNotes(size = 20): Promise<Page<Note>> {

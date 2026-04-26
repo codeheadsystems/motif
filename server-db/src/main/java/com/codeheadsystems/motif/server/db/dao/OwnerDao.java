@@ -4,6 +4,7 @@ import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Owner;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.jdbi.v3.core.mapper.RowMapper;
@@ -47,6 +48,14 @@ public interface OwnerDao {
 
   @SqlQuery("SELECT * FROM owners WHERE value = :value")
   Optional<Owner> findByValueIncludingDeleted(@Bind("value") String value);
+
+  /**
+   * Returns every non-deleted owner. Used by the pattern detector's scheduled scan.
+   * For Phase 2 MVP this is fine; once owner counts get large, switch to streaming
+   * or to per-owner triggers (e.g. enqueue when an event is logged).
+   */
+  @SqlQuery("SELECT * FROM owners WHERE deleted = false")
+  List<Owner> findAllActive();
 
   class OwnerRowMapper implements RowMapper<Owner> {
     @Override

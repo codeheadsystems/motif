@@ -1,5 +1,6 @@
 import { QuickAdd } from '@/components/dashboard/QuickAdd';
 import { Timeline, type TimelineEntry } from '@/components/dashboard/Timeline';
+import { DiscoveredPatterns } from '@/components/dashboard/DiscoveredPatterns';
 import { useCategoriesContext } from '@/hooks/useCategoriesContext';
 import { useRecentActivity } from '@/hooks/useApi';
 import { useMemo } from 'react';
@@ -50,6 +51,7 @@ export function DashboardHome() {
   return (
     <div className="space-y-14">
       <QuickAdd onCreated={refetch} />
+      <DiscoveredPatterns />
       <Timeline entries={entries} loading={loading} />
     </div>
   );

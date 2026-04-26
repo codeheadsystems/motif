@@ -68,15 +68,24 @@ Small, high-leverage changes that make later phases natural.
 - ✅ Webapp: `lucide-react` icon mapping, route changed `/c/:category` → `/c/:categoryId`, sidebar shows colored dots + icons, full TypeScript clean.
 - ✅ Tests: `CategoryManagerIntegrationTest`, expanded `CategoryTest`, all existing DAO/manager/resource tests updated for FK semantics. Backend + webapp + CDK tests all green.
 
-### Phase 2 — Pattern detection MVP (3–4 weeks)
+### Phase 2 — Pattern detection MVP — **COMPLETE** (2026-04-25)
 
 Server-side only, for synced users. On-device Android detector is built in the Android track.
 
-- `Pattern` entity, DAO, manager. Migration V15.
-- `PatternDetectionManager` with a frequency-only detector v1: for each owner, compute per-(subject, event-type) occurrence intervals, flag patterns with ≥3 occurrences and low variance. PrefixSpan (sequence mining) is v2.
-- Dropwizard managed task running nightly per owner.
-- `GET /api/patterns` resource returning top N.
-- Webapp: "Discovered patterns" card on dashboard (`DashboardHome`).
+- ✅ `Pattern` entity + `PatternDao` + `PatternManager`/`PatternDetectionManager`. Migration `V14__create_patterns_table.sql` (V15 in the original plan; renumbered because V13 took the Category slot).
+- ✅ Frequency detector v1: groups events by (subject, normalized event-value), requires ≥3 occurrences, CV < 0.3, ≥2 cycle coverage. Score = occurrences × confidence × recency-decay. Replace-on-rerun semantics. PrefixSpan deferred to v2.
+- ✅ `PatternDetectionTask` (`Managed`) sweeps every active owner on a `ScheduledExecutorService`. Default 24h, configurable via `patternDetectionIntervalSeconds`. Per-owner exceptions are caught so one bad owner doesn't poison the sweep.
+- ✅ `GET /api/patterns?limit=N` (default 5, max 50, owner-scoped).
+- ✅ `POST /api/patterns/recompute` for on-demand re-runs (powers the webapp Refresh button and dev dogfooding).
+- ✅ Webapp `DiscoveredPatterns` card on `DashboardHome` — sentence-style descriptions, "next expected" badge, manual refresh.
+- ✅ Tests: `PatternTest`, `PatternDaoTest`, `PatternDetectionManagerIntegrationTest` (covers cadence detection, normalization, threshold rejection, multi-event isolation, replace-on-rerun, full sweep), `PatternResourceTest`.
+
+Deferred to a later phase (per the spec):
+
+- Temporal patterns (time-of-day, day-of-week chi-squared) — frequency proved out first
+- PrefixSpan sequence mining
+- Stale-pattern fading / history table — current detector simply replaces, which is sufficient
+- Visualization (sparklines, calendars) — text + badge is enough for v1
 
 ### Phase 3 — Premium tier (5–7 weeks)
 
