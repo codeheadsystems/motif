@@ -37,7 +37,7 @@ export function App() {
         }
       >
         <Route index element={<DashboardHome />} />
-        <Route path="c/:category" element={<CategoryPage />} />
+        <Route path="c/:categoryId" element={<CategoryPage />} />
         <Route path="s/:subjectId" element={<SubjectDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

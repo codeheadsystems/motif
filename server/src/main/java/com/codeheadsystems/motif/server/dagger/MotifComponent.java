@@ -1,5 +1,6 @@
 package com.codeheadsystems.motif.server.dagger;
 
+import com.codeheadsystems.motif.server.resource.CategoryResource;
 import com.codeheadsystems.motif.server.resource.EventResource;
 import com.codeheadsystems.motif.server.resource.HelloWorldResource;
 import com.codeheadsystems.motif.server.resource.NoteResource;
@@ -17,6 +18,8 @@ public interface MotifComponent {
   OwnerResource ownerResource();
 
   SubjectResource subjectResource();
+
+  CategoryResource categoryResource();
 
   EventResource eventResource();
 

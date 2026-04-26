@@ -12,8 +12,8 @@ class NoteTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
   private static final Identifier OWNER_ID = OWNER.identifier();
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER_ID, CATEGORY, "test-subject");
+  private static final Identifier CATEGORY_ID = new Identifier();
+  private static final Subject SUBJECT = new Subject(OWNER_ID, CATEGORY_ID, "test-subject");
   private static final Identifier SUBJECT_ID = SUBJECT.identifier();
 
   // --- Constructor tests ---

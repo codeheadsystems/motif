@@ -1,6 +1,5 @@
 package com.codeheadsystems.motif.server.db.dao;
 
-import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Event;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Subject;
@@ -23,7 +22,7 @@ public interface EventDao {
 
   String SELECT_WITH_JOINS = "SELECT e.uuid, e.owner_uuid, e.subject_uuid, "
       + "e.value, e.timestamp, "
-      + "s.category AS subject_category, s.value AS subject_value, "
+      + "s.category_uuid AS subject_category_uuid, s.value AS subject_value, "
       + "s.uuid AS subject_uuid "
       + "FROM events e "
       + "JOIN subjects s ON e.subject_uuid = s.uuid";
@@ -90,7 +89,7 @@ public interface EventDao {
       Identifier ownerIdentifier = new Identifier(rs.getObject("owner_uuid", UUID.class));
       Subject subject = Subject.builder()
           .ownerIdentifier(ownerIdentifier)
-          .category(new Category(rs.getString("subject_category")))
+          .categoryIdentifier(new Identifier(rs.getObject("subject_category_uuid", UUID.class)))
           .value(rs.getString("subject_value"))
           .identifier(new Identifier(rs.getObject("subject_uuid", UUID.class)))
           .build();

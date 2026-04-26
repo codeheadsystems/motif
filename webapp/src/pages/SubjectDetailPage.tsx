@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import * as api from '@/api';
-import { useSubject, useEvents, useNotes } from '@/hooks/useApi';
+import { useCategory, useSubject, useEvents, useNotes } from '@/hooks/useApi';
 import { Timeline, type TimelineEntry } from '@/components/dashboard/Timeline';
 
 type PendingDelete =
@@ -30,6 +30,7 @@ export function SubjectDetailPage() {
 
   const { data: fetchedSubject, loading: subjectLoading } = useSubject(subjectId ?? null);
   const subject = hinted ?? fetchedSubject;
+  const { data: category } = useCategory(subject?.categoryIdentifier.uuid ?? null);
 
   const { data: eventsPage, refetch: refetchEvents, loading: eventsLoading } = useEvents(subjectId ?? null);
   const { data: notesPage, refetch: refetchNotes, loading: notesLoading } = useNotes(subjectId ?? null);
@@ -121,7 +122,7 @@ export function SubjectDetailPage() {
       <header className="space-y-3">
         <div className="flex items-center gap-3">
           <Link
-            to={subject ? `/c/${encodeURIComponent(subject.category.value)}` : '/'}
+            to={subject ? `/c/${subject.categoryIdentifier.uuid}` : '/'}
             className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" />
@@ -137,7 +138,7 @@ export function SubjectDetailPage() {
         ) : (
           <>
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              {subject.category.value}
+              {category?.name ?? '...'}
             </p>
             <h1
               className="font-serif text-[44px] leading-none tracking-tight"

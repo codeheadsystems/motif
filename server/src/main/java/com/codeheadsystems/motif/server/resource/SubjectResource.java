@@ -4,7 +4,6 @@ import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
-import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Owner;
 import com.codeheadsystems.motif.server.db.model.Subject;
@@ -20,7 +19,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.inject.Inject;
@@ -45,19 +43,18 @@ public class SubjectResource {
   }
 
   @GET
-  @Path("/categories")
-  public List<Category> categories(@Auth HofmannPrincipal principal) {
+  public Response list(@Auth HofmannPrincipal principal,
+                       @QueryParam("category") UUID categoryId,
+                       @QueryParam("page") @DefaultValue("0") int page,
+                       @QueryParam("size") @DefaultValue("50") int size) {
+    if (categoryId == null) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity("Missing required query param: category (uuid)").build();
+    }
     Owner owner = ownerResolver.resolve(principal);
-    return subjectManager.findCategories(owner);
-  }
-
-  @GET
-  public Page<Subject> list(@Auth HofmannPrincipal principal,
-                            @QueryParam("category") String category,
-                            @QueryParam("page") @DefaultValue("0") int page,
-                            @QueryParam("size") @DefaultValue("50") int size) {
-    Owner owner = ownerResolver.resolve(principal);
-    return subjectManager.findByCategory(owner, new Category(category), new PageRequest(page, size));
+    Page<Subject> result = subjectManager.findByCategory(
+        owner, new Identifier(categoryId), new PageRequest(page, size));
+    return Response.ok(result).build();
   }
 
   @GET
@@ -71,27 +68,40 @@ public class SubjectResource {
 
   @POST
   public Response create(@Auth HofmannPrincipal principal, Map<String, String> body) {
-    if (body == null || body.get("category") == null || body.get("value") == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: category, value").build();
+    if (body == null || body.get("categoryId") == null || body.get("value") == null) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity("Missing required fields: categoryId, value").build();
+    }
+    UUID categoryUuid = parseUuidOrNull(body.get("categoryId"));
+    if (categoryUuid == null) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity("Invalid UUID for categoryId").build();
     }
     Owner owner = ownerResolver.resolve(principal);
-    Subject subject = new Subject(owner.identifier(), new Category(body.get("category")), body.get("value"));
+    Subject subject = new Subject(owner.identifier(), new Identifier(categoryUuid), body.get("value"));
     subjectManager.store(subject);
-    AUDIT.info("subject.created owner={} id={} category={}", owner.value(), subject.identifier().uuid(), body.get("category"));
+    AUDIT.info("subject.created owner={} id={} categoryId={}",
+        owner.value(), subject.identifier().uuid(), categoryUuid);
     return Response.status(Response.Status.CREATED).entity(subject).build();
   }
 
   @PUT
   @Path("/{id}")
   public Response update(@Auth HofmannPrincipal principal, @PathParam("id") UUID id, Map<String, String> body) {
-    if (body == null || body.get("category") == null || body.get("value") == null) {
-      return Response.status(Response.Status.BAD_REQUEST).entity("Missing required fields: category, value").build();
+    if (body == null || body.get("categoryId") == null || body.get("value") == null) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity("Missing required fields: categoryId, value").build();
+    }
+    UUID categoryUuid = parseUuidOrNull(body.get("categoryId"));
+    if (categoryUuid == null) {
+      return Response.status(Response.Status.BAD_REQUEST)
+          .entity("Invalid UUID for categoryId").build();
     }
     Owner owner = ownerResolver.resolve(principal);
     Subject subject = Subject.builder()
         .ownerIdentifier(owner.identifier())
         .identifier(new Identifier(id))
-        .category(new Category(body.get("category")))
+        .categoryIdentifier(new Identifier(categoryUuid))
         .value(body.get("value"))
         .build();
     subjectManager.update(subject);
@@ -103,16 +113,21 @@ public class SubjectResource {
   @Path("/{id}")
   public Response delete(@Auth HofmannPrincipal principal, @PathParam("id") UUID id) {
     Owner owner = ownerResolver.resolve(principal);
-    Subject subject = Subject.builder()
-        .ownerIdentifier(owner.identifier())
-        .identifier(new Identifier(id))
-        .category(new Category("placeholder"))
-        .value("placeholder")
-        .build();
-    boolean deleted = subjectManager.delete(subject);
-    if (deleted) {
-      AUDIT.info("subject.deleted owner={} id={}", owner.value(), id);
+    // Look up the subject first so deletion is owner-scoped (avoid IDOR via direct delete-by-id).
+    return subjectManager.get(owner, new Identifier(id))
+        .map(subject -> {
+          subjectManager.delete(subject);
+          AUDIT.info("subject.deleted owner={} id={}", owner.value(), id);
+          return Response.noContent().build();
+        })
+        .orElse(Response.status(Response.Status.NOT_FOUND).build());
+  }
+
+  private static UUID parseUuidOrNull(String s) {
+    try {
+      return UUID.fromString(s);
+    } catch (IllegalArgumentException e) {
+      return null;
     }
-    return deleted ? Response.noContent().build() : Response.status(Response.Status.NOT_FOUND).build();
   }
 }

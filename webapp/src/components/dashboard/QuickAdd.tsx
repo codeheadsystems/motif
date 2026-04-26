@@ -14,25 +14,35 @@ type Status =
   | { kind: 'success'; label: string }
   | { kind: 'error'; message: string };
 
+const DEFAULT_NEW_COLOR = '#9CA3AF';
+const DEFAULT_NEW_ICON = 'tag';
+
 export function QuickAdd({ onCreated }: { onCreated: () => void }) {
-  const { data: categories, refetch: refetchCategories } = useCategoriesContext();
+  const { data: categoriesPage, refetch: refetchCategories } = useCategoriesContext();
   const [type, setType] = useState<'event' | 'note'>('event');
-  const [category, setCategory] = useState('');
+  const [categoryName, setCategoryName] = useState('');
   const [subject, setSubject] = useState('');
   const [desc, setDesc] = useState('');
   const [tags, setTags] = useState('');
   const [subjectsForCategory, setSubjectsForCategory] = useState<api.Subject[]>([]);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
+  const categories = categoriesPage?.items ?? [];
   const categoryOptions = useMemo(
-    () => (categories ?? []).map((c) => c.value),
+    () => categories.map((c) => c.name),
     [categories],
   );
 
+  function findCategoryByName(name: string): api.Category | undefined {
+    const target = name.trim().toLowerCase();
+    return categories.find((c) => c.name.toLowerCase() === target);
+  }
+
   async function refreshSubjectsForCategory(name: string) {
-    if (!name.trim()) { setSubjectsForCategory([]); return; }
+    const cat = findCategoryByName(name);
+    if (!cat) { setSubjectsForCategory([]); return; }
     try {
-      const page = await api.getSubjects(name.trim());
+      const page = await api.getSubjects(cat.identifier.uuid);
       setSubjectsForCategory(page.items);
     } catch {
       setSubjectsForCategory([]);
@@ -41,18 +51,24 @@ export function QuickAdd({ onCreated }: { onCreated: () => void }) {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const catName = category.trim();
+    const catName = categoryName.trim();
     const subjName = subject.trim();
     const value = desc.trim();
     if (!catName || !subjName || !value) return;
 
     setStatus({ kind: 'saving' });
     try {
-      // Find or create the subject.
-      let page = await api.getSubjects(catName);
+      // Find or create the category.
+      let cat = findCategoryByName(catName);
+      if (!cat) {
+        cat = await api.createCategory(catName, DEFAULT_NEW_COLOR, DEFAULT_NEW_ICON);
+      }
+
+      // Find or create the subject within that category.
+      let page = await api.getSubjects(cat.identifier.uuid);
       let subj = page.items.find((s) => s.value === subjName);
       if (!subj) {
-        subj = await api.createSubject(catName, subjName);
+        subj = await api.createSubject(cat.identifier.uuid, subjName);
       }
 
       if (type === 'event') {
@@ -64,7 +80,7 @@ export function QuickAdd({ onCreated }: { onCreated: () => void }) {
         await api.createNote(subj.identifier.uuid, value);
       }
 
-      setStatus({ kind: 'success', label: `${type === 'event' ? 'Event' : 'Note'} added to ${catName} / ${subjName}` });
+      setStatus({ kind: 'success', label: `${type === 'event' ? 'Event' : 'Note'} added to ${cat.name} / ${subjName}` });
       setDesc('');
       setTags('');
       await refetchCategories();
@@ -112,8 +128,8 @@ export function QuickAdd({ onCreated }: { onCreated: () => void }) {
             <FieldInput
               label="in"
               placeholder="Category"
-              value={category}
-              onChange={(v) => { setCategory(v); refreshSubjectsForCategory(v); }}
+              value={categoryName}
+              onChange={(v) => { setCategoryName(v); refreshSubjectsForCategory(v); }}
               listId="qa-categories"
               options={categoryOptions}
               widthClass="w-[150px]"

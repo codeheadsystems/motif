@@ -56,15 +56,17 @@ Non-negotiable prerequisites before building new features.
 - **HTTPS / TLS termination plan.** Decide: reverse proxy (nginx/Caddy) vs. Dropwizard native TLS. Document.
 - **CI/CD**: confirm/add GitHub Actions workflow running `./gradlew build` and the webapp build on PRs. Subagent didn't find one.
 
-### Phase 1 — Category & domain polish (2 weeks)
+### Phase 1 — Category & domain polish — **COMPLETE** (2026-04-25)
 
 Small, high-leverage changes that make later phases natural.
 
-- Promote `Category` from string-on-Subject to first-class entity with `color` and `icon`. Flyway migration V12 creates `categories` table, V13 backfills per-owner from existing distinct `subject.category` strings, V14 adds `subject.category_id` FK and drops the old column.
-- Seed default categories on owner creation (`OwnerManager.getOrCreate()`).
-- Update `SubjectDao`, `SubjectManager`, `SubjectResource`, webapp `CategoryPage` and `api.ts` typings.
-- New `CategoryResource` for list/create/edit/delete.
-- Tests: extend `SubjectManagerTest`, add `CategoryManagerTest`, `CategoryResourceTest`.
+- ✅ Promoted `Category` from string-on-Subject to first-class entity with `color` and `icon`. Single atomic Flyway migration `V13__promote_category_to_entity.sql` creates the table, backfills from existing `subject.category` strings (gray + tag default), adds `subjects.category_uuid` FK, and drops the old column.
+- ✅ Default categories (Home, Health, Creative, Learning, Professional) seeded on owner creation via `OwnerResolver` calling `CategoryManager.seedDefaults`. Idempotent.
+- ✅ Updated `Subject` model (`Identifier categoryIdentifier`), `SubjectDao`, `SubjectManager`, `SubjectResource`, `EventDao` row-mapper.
+- ✅ New `CategoryResource` at `/api/categories` with full CRUD; delete refuses with 409 when subjects reference the category.
+- ✅ Removed legacy `GET /api/subjects/categories` endpoint.
+- ✅ Webapp: `lucide-react` icon mapping, route changed `/c/:category` → `/c/:categoryId`, sidebar shows colored dots + icons, full TypeScript clean.
+- ✅ Tests: `CategoryManagerIntegrationTest`, expanded `CategoryTest`, all existing DAO/manager/resource tests updated for FK semantics. Backend + webapp + CDK tests all green.
 
 ### Phase 2 — Pattern detection MVP (3–4 weeks)
 

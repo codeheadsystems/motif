@@ -3,6 +3,8 @@ package com.codeheadsystems.motif.server.db.manager;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codeheadsystems.motif.server.db.DatabaseTest;
+import com.codeheadsystems.motif.server.db.TestCategories;
+import com.codeheadsystems.motif.server.db.dao.CategoryDao;
 import com.codeheadsystems.motif.server.db.dao.EventDao;
 import com.codeheadsystems.motif.server.db.dao.NoteDao;
 import com.codeheadsystems.motif.server.db.dao.OwnerDao;
@@ -24,6 +26,7 @@ class OwnerManagerIntegrationTest extends DatabaseTest {
 
   private OwnerManager ownerManager;
   private SubjectDao subjectDao;
+  private CategoryDao categoryDao;
   private EventDao eventDao;
   private NoteDao noteDao;
   private TagsDao tagsDao;
@@ -35,9 +38,11 @@ class OwnerManagerIntegrationTest extends DatabaseTest {
       handle.execute("DELETE FROM notes");
       handle.execute("DELETE FROM events");
       handle.execute("DELETE FROM subjects");
+      handle.execute("DELETE FROM categories");
       handle.execute("DELETE FROM owners");
     });
     OwnerDao ownerDao = jdbi.onDemand(OwnerDao.class);
+    categoryDao = jdbi.onDemand(CategoryDao.class);
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
     noteDao = jdbi.onDemand(NoteDao.class);
@@ -114,10 +119,12 @@ class OwnerManagerIntegrationTest extends DatabaseTest {
     Owner owner = new Owner("CASCADE-OWNER");
     ownerManager.store(owner);
 
-    Category category = new Category("test-cat");
-    Subject subject = new Subject(owner.identifier(), category, "test-subject");
+    Category category = TestCategories.of(owner.identifier(), "test-cat");
+    categoryDao.upsert(category.identifier().uuid(), category.ownerIdentifier().uuid(),
+        category.name(), category.color(), category.icon());
+    Subject subject = new Subject(owner.identifier(), category.identifier(), "test-subject");
     subjectDao.upsert(subject.identifier().uuid(), subject.ownerIdentifier().uuid(),
-        subject.category().value(), subject.value());
+        subject.categoryIdentifier().uuid(), subject.value());
 
     Event event = Event.builder().owner(owner).subject(subject).value("test-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z"))).build();

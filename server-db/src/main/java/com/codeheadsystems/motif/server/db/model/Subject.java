@@ -5,19 +5,23 @@ import org.jspecify.annotations.Nullable;
 
 
 /**
- * Subjects are value objects that live in a category. They are strings less than
- * 128 chars.
+ * Subjects are value objects that live in a category (referenced by id). They are strings less
+ * than 128 chars.
  *
- * @param ownerIdentifier The identifier of the owner.
- * @param category        The category of the subject.
- * @param value           The value of the subject.
- * @param identifier      The identifier of the subject.
+ * @param ownerIdentifier    The identifier of the owner.
+ * @param categoryIdentifier The identifier of the owning category.
+ * @param value              The value of the subject.
+ * @param identifier         The identifier of the subject.
  */
-public record Subject(Identifier ownerIdentifier, Category category, String value, @Nullable Identifier identifier) {
+public record Subject(
+    Identifier ownerIdentifier,
+    Identifier categoryIdentifier,
+    String value,
+    @Nullable Identifier identifier) {
 
   public Subject {
     Objects.requireNonNull(ownerIdentifier, "ownerIdentifier cannot be null");
-    Objects.requireNonNull(category, "category cannot be null");
+    Objects.requireNonNull(categoryIdentifier, "categoryIdentifier cannot be null");
     value = Objects.requireNonNull(value, "value cannot be null")
         .strip();
     if (value.isEmpty()) {
@@ -29,8 +33,8 @@ public record Subject(Identifier ownerIdentifier, Category category, String valu
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
   }
 
-  public Subject(Identifier ownerIdentifier, Category category, String value) {
-    this(ownerIdentifier, category, value, null);
+  public Subject(Identifier ownerIdentifier, Identifier categoryIdentifier, String value) {
+    this(ownerIdentifier, categoryIdentifier, value, null);
   }
 
   public static Builder from(Subject subject) {
@@ -43,7 +47,7 @@ public record Subject(Identifier ownerIdentifier, Category category, String valu
 
   public static class Builder {
     private Identifier ownerIdentifier;
-    private Category category;
+    private Identifier categoryIdentifier;
     private String value;
     private Identifier identifier;
 
@@ -54,7 +58,7 @@ public record Subject(Identifier ownerIdentifier, Category category, String valu
       Objects.requireNonNull(subject, "subject cannot be null");
       Builder builder = new Builder();
       builder.ownerIdentifier = subject.ownerIdentifier();
-      builder.category = subject.category();
+      builder.categoryIdentifier = subject.categoryIdentifier();
       builder.value = subject.value();
       builder.identifier = subject.identifier();
       return builder;
@@ -70,7 +74,11 @@ public record Subject(Identifier ownerIdentifier, Category category, String valu
     }
 
     public Builder category(Category category) {
-      this.category = category;
+      return categoryIdentifier(category.identifier());
+    }
+
+    public Builder categoryIdentifier(Identifier categoryIdentifier) {
+      this.categoryIdentifier = categoryIdentifier;
       return this;
     }
 
@@ -85,7 +93,7 @@ public record Subject(Identifier ownerIdentifier, Category category, String valu
     }
 
     public Subject build() {
-      return new Subject(ownerIdentifier, category, value, identifier);
+      return new Subject(ownerIdentifier, categoryIdentifier, value, identifier);
     }
   }
 }

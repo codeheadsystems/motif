@@ -13,15 +13,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { CategoryIcon } from '@/components/CategoryIcon';
 import * as api from '@/api';
-import { useSubjects } from '@/hooks/useApi';
+import { useCategory, useSubjects } from '@/hooks/useApi';
 import { useCategoriesContext } from '@/hooks/useCategoriesContext';
 
 export function CategoryPage() {
-  const { category: rawCategory } = useParams<{ category: string }>();
-  const category = rawCategory ? decodeURIComponent(rawCategory) : '';
+  const { categoryId: rawId } = useParams<{ categoryId: string }>();
+  const categoryId = rawId ?? '';
+  const { data: category, loading: categoryLoading } = useCategory(categoryId || null);
   const { refetch: refetchCategories } = useCategoriesContext();
-  const { data: page, loading, refetch } = useSubjects(category || null);
+  const { data: page, loading, refetch } = useSubjects(categoryId || null);
   const [newSubject, setNewSubject] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<api.Subject | null>(null);
@@ -29,10 +31,10 @@ export function CategoryPage() {
   async function handleAddSubject(e: FormEvent) {
     e.preventDefault();
     const value = newSubject.trim();
-    if (!value) return;
+    if (!value || !categoryId) return;
     setError(null);
     try {
-      await api.createSubject(category, value);
+      await api.createSubject(categoryId, value);
       setNewSubject('');
       await refetch();
       await refetchCategories();
@@ -55,6 +57,7 @@ export function CategoryPage() {
   }
 
   const subjects = page?.items ?? [];
+  const categoryName = category?.name ?? '';
 
   return (
     <div className="space-y-10">
@@ -63,14 +66,25 @@ export function CategoryPage() {
           Category
         </p>
         <h1
-          className="font-serif text-[44px] leading-none tracking-tight"
+          className="flex items-center gap-3 font-serif text-[44px] leading-none tracking-tight"
           style={{ fontVariationSettings: "'opsz' 144" }}
         >
-          <span className="italic">{category.slice(0, 1)}</span>
-          {category.slice(1)}
+          {category && (
+            <CategoryIcon
+              name={category.icon}
+              size={32}
+              className="shrink-0"
+              // inline color via style so Tailwind can't tree-shake unknown values
+            />
+          )}
+          {category && <span style={{ color: category.color }} aria-hidden>•</span>}
+          <span>
+            <span className="italic">{categoryName.slice(0, 1)}</span>
+            {categoryName.slice(1)}
+          </span>
         </h1>
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-          {loading
+          {loading || categoryLoading
             ? 'Loading…'
             : `${subjects.length} ${subjects.length === 1 ? 'subject' : 'subjects'}`}
         </p>

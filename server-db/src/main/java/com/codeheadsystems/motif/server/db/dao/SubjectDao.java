@@ -1,6 +1,5 @@
 package com.codeheadsystems.motif.server.db.dao;
 
-import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Subject;
 import java.sql.ResultSet;
@@ -18,17 +17,16 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(SubjectDao.SubjectRowMapper.class)
 public interface SubjectDao {
 
-  String SELECT = "SELECT s.uuid, s.owner_uuid, s.category, s.value "
-      + "FROM subjects s";
+  String SELECT = "SELECT s.uuid, s.owner_uuid, s.category_uuid, s.value FROM subjects s";
 
-  @SqlUpdate("INSERT INTO subjects (uuid, owner_uuid, category, value) "
-      + "VALUES (:uuid, :ownerUuid, :category, :value) "
+  @SqlUpdate("INSERT INTO subjects (uuid, owner_uuid, category_uuid, value) "
+      + "VALUES (:uuid, :ownerUuid, :categoryUuid, :value) "
       + "ON CONFLICT (uuid) DO UPDATE SET "
-      + "category = EXCLUDED.category, "
+      + "category_uuid = EXCLUDED.category_uuid, "
       + "value = EXCLUDED.value")
   void upsert(@Bind("uuid") UUID uuid,
               @Bind("ownerUuid") UUID ownerUuid,
-              @Bind("category") String category,
+              @Bind("categoryUuid") UUID categoryUuid,
               @Bind("value") String value);
 
   @SqlQuery(SELECT + " WHERE s.uuid = :uuid")
@@ -41,24 +39,21 @@ public interface SubjectDao {
   @SqlUpdate("DELETE FROM subjects WHERE owner_uuid = :ownerUuid AND uuid = :uuid")
   int deleteByOwnerAndIdentifier(@Bind("ownerUuid") UUID ownerUuid, @Bind("uuid") UUID uuid);
 
-  @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid AND s.category = :category "
+  @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid AND s.category_uuid = :categoryUuid "
       + "ORDER BY s.value LIMIT :limit OFFSET :offset")
   List<Subject> findByOwnerAndCategory(@Bind("ownerUuid") UUID ownerUuid,
-                                        @Bind("category") String category,
+                                        @Bind("categoryUuid") UUID categoryUuid,
                                         @Bind("limit") int limit,
                                         @Bind("offset") int offset);
 
   @SqlQuery(SELECT + " WHERE s.owner_uuid = :ownerUuid "
-      + "AND s.category = :category AND s.value = :value")
+      + "AND s.category_uuid = :categoryUuid AND s.value = :value")
   Optional<Subject> findByOwnerCategoryAndValue(@Bind("ownerUuid") UUID ownerUuid,
-                                                 @Bind("category") String category,
+                                                 @Bind("categoryUuid") UUID categoryUuid,
                                                  @Bind("value") String value);
 
   @SqlQuery(SELECT + " WHERE s.value = :value")
   List<Subject> findByValue(@Bind("value") String value);
-
-  @SqlQuery("SELECT DISTINCT category FROM subjects WHERE owner_uuid = :ownerUuid ORDER BY category")
-  List<String> findCategoriesByOwner(@Bind("ownerUuid") UUID ownerUuid);
 
   @SqlUpdate("DELETE FROM subjects WHERE owner_uuid = :ownerUuid")
   int deleteByOwner(@Bind("ownerUuid") UUID ownerUuid);
@@ -66,10 +61,9 @@ public interface SubjectDao {
   class SubjectRowMapper implements RowMapper<Subject> {
     @Override
     public Subject map(ResultSet rs, StatementContext ctx) throws SQLException {
-      Identifier ownerIdentifier = new Identifier(rs.getObject("owner_uuid", UUID.class));
       return Subject.builder()
-          .ownerIdentifier(ownerIdentifier)
-          .category(new Category(rs.getString("category")))
+          .ownerIdentifier(new Identifier(rs.getObject("owner_uuid", UUID.class)))
+          .categoryIdentifier(new Identifier(rs.getObject("category_uuid", UUID.class)))
           .value(rs.getString("value"))
           .identifier(new Identifier(rs.getObject("uuid", UUID.class)))
           .build();

@@ -64,6 +64,7 @@ public class MotifApplication extends Application<MotifConfiguration> {
     environment.jersey().register(component.helloWorldResource());
     environment.jersey().register(component.ownerResource());
     environment.jersey().register(component.subjectResource());
+    environment.jersey().register(component.categoryResource());
     environment.jersey().register(component.eventResource());
     environment.jersey().register(component.noteResource());
     environment.jersey().register(new SessionResource());

@@ -1,6 +1,7 @@
 package com.codeheadsystems.motif.server.dagger;
 
 import com.codeheadsystems.motif.server.MotifConfiguration;
+import com.codeheadsystems.motif.server.db.dao.CategoryDao;
 import com.codeheadsystems.motif.server.db.dao.EventDao;
 import com.codeheadsystems.motif.server.db.dao.NoteDao;
 import com.codeheadsystems.motif.server.db.dao.OwnerDao;
@@ -44,6 +45,12 @@ public class MotifModule {
   @Singleton
   SubjectDao subjectDao() {
     return jdbi.onDemand(SubjectDao.class);
+  }
+
+  @Provides
+  @Singleton
+  CategoryDao categoryDao() {
+    return jdbi.onDemand(CategoryDao.class);
   }
 
   @Provides

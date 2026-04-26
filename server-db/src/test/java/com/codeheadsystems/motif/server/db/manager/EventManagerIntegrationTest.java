@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.db.DatabaseTest;
+import com.codeheadsystems.motif.server.db.TestCategories;
+import com.codeheadsystems.motif.server.db.dao.CategoryDao;
 import com.codeheadsystems.motif.server.db.dao.EventDao;
 import com.codeheadsystems.motif.server.db.dao.OwnerDao;
 import com.codeheadsystems.motif.server.db.dao.SubjectDao;
@@ -26,12 +28,13 @@ import org.junit.jupiter.api.Test;
 class EventManagerIntegrationTest extends DatabaseTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
+  private static final Category CATEGORY = TestCategories.of(OWNER.identifier(), "test-category");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY.identifier(), "test-subject");
 
   private EventManager eventManager;
   private OwnerDao ownerDao;
   private SubjectDao subjectDao;
+  private CategoryDao categoryDao;
 
   @BeforeEach
   void setUp() {
@@ -40,20 +43,27 @@ class EventManagerIntegrationTest extends DatabaseTest {
       handle.execute("DELETE FROM notes");
       handle.execute("DELETE FROM events");
       handle.execute("DELETE FROM subjects");
+      handle.execute("DELETE FROM categories");
       handle.execute("DELETE FROM owners");
     });
     ownerDao = jdbi.onDemand(OwnerDao.class);
+    categoryDao = jdbi.onDemand(CategoryDao.class);
     subjectDao = jdbi.onDemand(SubjectDao.class);
     EventDao eventDao = jdbi.onDemand(EventDao.class);
     TagsDao tagsDao = jdbi.onDemand(TagsDao.class);
     TagsManager tagsManager = new TagsManager(tagsDao);
     ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value(), false);
-    subjectDao.upsert(
-        SUBJECT.identifier().uuid(),
-        SUBJECT.ownerIdentifier().uuid(),
-        SUBJECT.category().value(),
-        SUBJECT.value());
+    storeCategory(CATEGORY);
+    storeSubject(SUBJECT);
     eventManager = new EventManager(jdbi, eventDao, tagsManager);
+  }
+
+  private void storeCategory(Category c) {
+    categoryDao.upsert(c.identifier().uuid(), c.ownerIdentifier().uuid(), c.name(), c.color(), c.icon());
+  }
+
+  private void storeSubject(Subject s) {
+    subjectDao.upsert(s.identifier().uuid(), s.ownerIdentifier().uuid(), s.categoryIdentifier().uuid(), s.value());
   }
 
   // --- store and get ---
@@ -133,9 +143,8 @@ class EventManagerIntegrationTest extends DatabaseTest {
 
   @Test
   void findBySubjectReturnsMatchingEvents() {
-    Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.upsert(other.identifier().uuid(), other.ownerIdentifier().uuid(),
-        other.category().value(), other.value());
+    Subject other = new Subject(OWNER.identifier(), CATEGORY.identifier(), "other-subject");
+    storeSubject(other);
 
     Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("event 1")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z"))).build();
@@ -182,9 +191,8 @@ class EventManagerIntegrationTest extends DatabaseTest {
 
   @Test
   void findBySubjectAndTimeRangeFiltersBoth() {
-    Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.upsert(other.identifier().uuid(), other.ownerIdentifier().uuid(),
-        other.category().value(), other.value());
+    Subject other = new Subject(OWNER.identifier(), CATEGORY.identifier(), "other-subject");
+    storeSubject(other);
 
     Event match = Event.builder().owner(OWNER).subject(SUBJECT).value("match")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T12:00:00Z"))).build();
@@ -212,9 +220,10 @@ class EventManagerIntegrationTest extends DatabaseTest {
   void eventsAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
     ownerDao.upsert(other.identifier().uuid(), other.value(), false);
-    Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
-    subjectDao.upsert(otherSubject.identifier().uuid(), otherSubject.ownerIdentifier().uuid(),
-        otherSubject.category().value(), otherSubject.value());
+    Category otherCategory = TestCategories.of(other.identifier(), "test-category");
+    storeCategory(otherCategory);
+    Subject otherSubject = new Subject(other.identifier(), otherCategory.identifier(), "test-subject");
+    storeSubject(otherSubject);
 
     Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("owner event").build();
     Event e2 = Event.builder().owner(other).subject(otherSubject).value("other event").build();

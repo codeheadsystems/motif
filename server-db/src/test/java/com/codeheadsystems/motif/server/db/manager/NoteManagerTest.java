@@ -13,7 +13,6 @@ import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.db.dao.NoteDao;
 import com.codeheadsystems.motif.server.db.dao.TagsDao;
-import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Event;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Note;
@@ -38,8 +37,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NoteManagerTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
+  private static final Identifier CATEGORY_ID = new Identifier();
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY_ID, "test-subject");
   private static final Timestamp TIMESTAMP = new Timestamp(Instant.parse("2026-03-28T12:00:00Z"));
   private static final Event EVENT = Event.builder()
       .owner(OWNER).subject(SUBJECT).value("test-event").timestamp(TIMESTAMP).build();

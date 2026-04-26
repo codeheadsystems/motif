@@ -37,13 +37,20 @@ function useResource<T>(fetcher: () => Promise<T>, deps: ReadonlyArray<unknown>)
 const EMPTY_PAGE = { items: [], pageNumber: 0, pageSize: 0, hasMore: false };
 
 export function useCategories() {
-  return useResource(() => api.getCategories(), []);
+  return useResource<api.Page<api.Category>>(() => api.getCategories(), []);
 }
 
-export function useSubjects(category: string | null) {
+export function useCategory(id: string | null) {
+  return useResource<api.Category | null>(
+    () => (id ? api.getCategory(id) : Promise.resolve(null)),
+    [id],
+  );
+}
+
+export function useSubjects(categoryId: string | null) {
   return useResource<api.Page<api.Subject>>(
-    () => (category ? api.getSubjects(category) : Promise.resolve(EMPTY_PAGE)),
-    [category],
+    () => (categoryId ? api.getSubjects(categoryId) : Promise.resolve(EMPTY_PAGE)),
+    [categoryId],
   );
 }
 

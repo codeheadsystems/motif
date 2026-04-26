@@ -34,26 +34,26 @@ public class SubjectManager {
   }
 
   public Page<Subject> findByCategory(Owner owner, Category category, PageRequest pageRequest) {
+    return findByCategory(owner, category.identifier(), pageRequest);
+  }
+
+  public Page<Subject> findByCategory(Owner owner, Identifier categoryIdentifier, PageRequest pageRequest) {
     List<Subject> results = subjectDao.findByOwnerAndCategory(
-        owner.identifier().uuid(), category.value(),
+        owner.identifier().uuid(), categoryIdentifier.uuid(),
         pageRequest.pageSize() + 1, pageRequest.offset());
     return Page.of(results, pageRequest);
   }
 
-  public List<Category> findCategories(Owner owner) {
-    return subjectDao.findCategoriesByOwner(owner.identifier().uuid())
-        .stream().map(Category::new).toList();
-  }
-
   public Optional<Subject> find(Owner owner, Category category, String value) {
-    return subjectDao.findByOwnerCategoryAndValue(owner.identifier().uuid(), category.value(), value);
+    return subjectDao.findByOwnerCategoryAndValue(
+        owner.identifier().uuid(), category.identifier().uuid(), value);
   }
 
   public void store(Subject subject) {
     subjectDao.upsert(
         subject.identifier().uuid(),
         subject.ownerIdentifier().uuid(),
-        subject.category().value(),
+        subject.categoryIdentifier().uuid(),
         subject.value());
   }
 
@@ -74,7 +74,7 @@ public class SubjectManager {
       txSubjectDao.upsert(
           subject.identifier().uuid(),
           subject.ownerIdentifier().uuid(),
-          subject.category().value(),
+          subject.categoryIdentifier().uuid(),
           subject.value());
     });
   }

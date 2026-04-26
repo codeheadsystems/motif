@@ -3,6 +3,7 @@ package com.codeheadsystems.motif.server.db.dao;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.codeheadsystems.motif.server.db.DatabaseTest;
+import com.codeheadsystems.motif.server.db.TestCategories;
 import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Event;
 import com.codeheadsystems.motif.server.db.model.Identifier;
@@ -18,11 +19,12 @@ import org.junit.jupiter.api.Test;
 class EventDaoTest extends DatabaseTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
+  private static final Category CATEGORY = TestCategories.of(OWNER.identifier(), "test-category");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY.identifier(), "test-subject");
 
   private EventDao eventDao;
   private SubjectDao subjectDao;
+  private CategoryDao categoryDao;
   private OwnerDao ownerDao;
 
   @BeforeEach
@@ -30,12 +32,15 @@ class EventDaoTest extends DatabaseTest {
     jdbi.useHandle(handle -> {
       handle.execute("DELETE FROM events");
       handle.execute("DELETE FROM subjects");
+      handle.execute("DELETE FROM categories");
       handle.execute("DELETE FROM owners");
     });
     ownerDao = jdbi.onDemand(OwnerDao.class);
+    categoryDao = jdbi.onDemand(CategoryDao.class);
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
     storeOwner(OWNER);
+    storeCategory(CATEGORY);
     storeSubject(SUBJECT);
   }
 
@@ -43,11 +48,16 @@ class EventDaoTest extends DatabaseTest {
     ownerDao.upsert(owner.identifier().uuid(), owner.value(), false);
   }
 
+  private void storeCategory(Category category) {
+    categoryDao.upsert(category.identifier().uuid(), category.ownerIdentifier().uuid(),
+        category.name(), category.color(), category.icon());
+  }
+
   private void storeSubject(Subject subject) {
     subjectDao.upsert(
         subject.identifier().uuid(),
         subject.ownerIdentifier().uuid(),
-        subject.category().value(),
+        subject.categoryIdentifier().uuid(),
         subject.value());
   }
 
@@ -131,7 +141,7 @@ class EventDaoTest extends DatabaseTest {
 
   @Test
   void findByOwnerAndSubjectReturnsMatchingEvents() {
-    Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
+    Subject other = new Subject(OWNER.identifier(), CATEGORY.identifier(), "other-subject");
     storeSubject(other);
 
     Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("event 1")
@@ -158,7 +168,7 @@ class EventDaoTest extends DatabaseTest {
 
   @Test
   void findByOwnerAndSubjectReturnsEmptyWhenNoMatches() {
-    Subject other = new Subject(OWNER.identifier(), CATEGORY, "nonexistent");
+    Subject other = new Subject(OWNER.identifier(), CATEGORY.identifier(), "nonexistent");
     storeSubject(other);
 
     assertThat(eventDao.findByOwnerAndSubject(
@@ -219,7 +229,7 @@ class EventDaoTest extends DatabaseTest {
 
   @Test
   void findByOwnerSubjectAndTimeRangeFiltersBoth() {
-    Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
+    Subject other = new Subject(OWNER.identifier(), CATEGORY.identifier(), "other-subject");
     storeSubject(other);
 
     Event match = Event.builder().owner(OWNER).subject(SUBJECT).value("match")
@@ -289,7 +299,9 @@ class EventDaoTest extends DatabaseTest {
   void eventsAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
     storeOwner(other);
-    Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
+    Category otherCategory = TestCategories.of(other.identifier(), "test-category");
+    storeCategory(otherCategory);
+    Subject otherSubject = new Subject(other.identifier(), otherCategory.identifier(), "test-subject");
     storeSubject(otherSubject);
 
     Event e1 = Event.builder().owner(OWNER).subject(SUBJECT).value("owner event").build();

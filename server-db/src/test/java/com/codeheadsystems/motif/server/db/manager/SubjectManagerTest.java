@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
+import com.codeheadsystems.motif.server.db.TestCategories;
 import com.codeheadsystems.motif.server.db.dao.SubjectDao;
 import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Identifier;
@@ -31,8 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SubjectManagerTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
+  private static final Category CATEGORY = TestCategories.of(OWNER.identifier(), "test-category");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY.identifier(), "test-subject");
 
   @Mock
   private Jdbi jdbi;
@@ -65,7 +66,7 @@ class SubjectManagerTest {
     verify(subjectDao).upsert(
         SUBJECT.identifier().uuid(),
         SUBJECT.ownerIdentifier().uuid(),
-        SUBJECT.category().value(),
+        SUBJECT.categoryIdentifier().uuid(),
         SUBJECT.value());
   }
 
@@ -115,7 +116,7 @@ class SubjectManagerTest {
   @Test
   void findByCategoryDelegatesToDao() {
     PageRequest pr = PageRequest.first(10);
-    when(subjectDao.findByOwnerAndCategory(OWNER.identifier().uuid(), CATEGORY.value(), 11, 0))
+    when(subjectDao.findByOwnerAndCategory(OWNER.identifier().uuid(), CATEGORY.identifier().uuid(), 11, 0))
         .thenReturn(List.of(SUBJECT));
 
     Page<Subject> results = subjectManager.findByCategory(OWNER, CATEGORY, pr);
@@ -129,7 +130,7 @@ class SubjectManagerTest {
   @Test
   void findDelegatesToDao() {
     when(subjectDao.findByOwnerCategoryAndValue(
-        OWNER.identifier().uuid(), CATEGORY.value(), "test-subject"))
+        OWNER.identifier().uuid(), CATEGORY.identifier().uuid(), "test-subject"))
         .thenReturn(Optional.of(SUBJECT));
 
     Optional<Subject> result = subjectManager.find(OWNER, CATEGORY, "test-subject");
@@ -140,7 +141,7 @@ class SubjectManagerTest {
   @Test
   void findReturnsEmptyWhenNotFound() {
     when(subjectDao.findByOwnerCategoryAndValue(
-        OWNER.identifier().uuid(), CATEGORY.value(), "nonexistent"))
+        OWNER.identifier().uuid(), CATEGORY.identifier().uuid(), "nonexistent"))
         .thenReturn(Optional.empty());
 
     assertThat(subjectManager.find(OWNER, CATEGORY, "nonexistent")).isEmpty();
@@ -159,7 +160,7 @@ class SubjectManagerTest {
     verify(subjectDao).upsert(
         updated.identifier().uuid(),
         updated.ownerIdentifier().uuid(),
-        updated.category().value(),
+        updated.categoryIdentifier().uuid(),
         "updated");
   }
 

@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import com.codeheadsystems.hofmann.dropwizard.auth.HofmannPrincipal;
 import com.codeheadsystems.motif.server.db.manager.EventManager;
 import com.codeheadsystems.motif.server.db.manager.SubjectManager;
-import com.codeheadsystems.motif.server.db.model.Category;
 import com.codeheadsystems.motif.server.db.model.Event;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Owner;
@@ -28,7 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class EventResourceTest {
 
   private static final Owner OWNER = new Owner("ALICE");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), new Category("test"), "sub-1");
+  private static final Identifier CATEGORY_ID = new Identifier();
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY_ID, "sub-1");
   private static final HofmannPrincipal PRINCIPAL = new HofmannPrincipal("ALICE", "jti-1");
 
   @Mock

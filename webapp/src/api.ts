@@ -33,9 +33,17 @@ export interface Owner {
   deleted: boolean;
 }
 
+export interface Category {
+  ownerIdentifier: { uuid: string };
+  identifier: { uuid: string };
+  name: string;
+  color: string;
+  icon: string;
+}
+
 export interface Subject {
   ownerIdentifier: { uuid: string };
-  category: { value: string };
+  categoryIdentifier: { uuid: string };
   value: string;
   identifier: { uuid: string };
 }
@@ -71,13 +79,47 @@ export async function getOwner(): Promise<Owner> {
   return res.json();
 }
 
-export async function getCategories(): Promise<{ value: string }[]> {
-  const res = await apiFetch('/api/subjects/categories');
+// --- categories ---
+
+export async function getCategories(page = 0, size = 100): Promise<Page<Category>> {
+  const res = await apiFetch(`/api/categories?page=${page}&size=${size}`);
   return res.json();
 }
 
-export async function getSubjects(category: string, page = 0, size = 50): Promise<Page<Subject>> {
-  const res = await apiFetch(`/api/subjects?category=${encodeURIComponent(category)}&page=${page}&size=${size}`);
+export async function getCategory(id: string): Promise<Category> {
+  const res = await apiFetch(`/api/categories/${id}`);
+  return res.json();
+}
+
+export async function createCategory(name: string, color: string, icon: string): Promise<Category> {
+  const res = await apiFetch('/api/categories', {
+    method: 'POST',
+    body: JSON.stringify({ name, color, icon }),
+  });
+  return res.json();
+}
+
+export async function updateCategory(
+  id: string,
+  name: string,
+  color: string,
+  icon: string,
+): Promise<Category> {
+  const res = await apiFetch(`/api/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, color, icon }),
+  });
+  return res.json();
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
+}
+
+// --- subjects ---
+
+export async function getSubjects(categoryId: string, page = 0, size = 50): Promise<Page<Subject>> {
+  const res = await apiFetch(`/api/subjects?category=${categoryId}&page=${page}&size=${size}`);
   return res.json();
 }
 
@@ -86,10 +128,10 @@ export async function getSubject(id: string): Promise<Subject> {
   return res.json();
 }
 
-export async function createSubject(category: string, value: string): Promise<Subject> {
+export async function createSubject(categoryId: string, value: string): Promise<Subject> {
   const res = await apiFetch('/api/subjects', {
     method: 'POST',
-    body: JSON.stringify({ category, value }),
+    body: JSON.stringify({ categoryId, value }),
   });
   return res.json();
 }
@@ -97,6 +139,8 @@ export async function createSubject(category: string, value: string): Promise<Su
 export async function deleteSubject(id: string): Promise<void> {
   await apiFetch(`/api/subjects/${id}`, { method: 'DELETE' });
 }
+
+// --- events ---
 
 export async function getRecentEvents(size = 20): Promise<Page<Event>> {
   const res = await apiFetch(`/api/events/recent?size=${size}`);
@@ -119,6 +163,8 @@ export async function createEvent(subjectId: string, value: string, tags: string
 export async function deleteEvent(id: string): Promise<void> {
   await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
 }
+
+// --- notes ---
 
 export async function getRecentNotes(size = 20): Promise<Page<Note>> {
   const res = await apiFetch(`/api/notes/recent?size=${size}`);

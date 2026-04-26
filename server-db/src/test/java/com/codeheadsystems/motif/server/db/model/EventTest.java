@@ -11,8 +11,8 @@ import org.junit.jupiter.api.Test;
 class EventTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
+  private static final Identifier CATEGORY_ID = new Identifier();
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY_ID, "test-subject");
 
   // --- Constructor tests ---
 

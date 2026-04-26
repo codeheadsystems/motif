@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.codeheadsystems.motif.common.Page;
 import com.codeheadsystems.motif.common.PageRequest;
 import com.codeheadsystems.motif.server.db.DatabaseTest;
+import com.codeheadsystems.motif.server.db.TestCategories;
+import com.codeheadsystems.motif.server.db.dao.CategoryDao;
 import com.codeheadsystems.motif.server.db.dao.EventDao;
 import com.codeheadsystems.motif.server.db.dao.NoteDao;
 import com.codeheadsystems.motif.server.db.dao.OwnerDao;
@@ -26,12 +28,13 @@ import org.junit.jupiter.api.Test;
 class NoteManagerIntegrationTest extends DatabaseTest {
 
   private static final Owner OWNER = new Owner("TEST-OWNER");
-  private static final Category CATEGORY = new Category("test-category");
-  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY, "test-subject");
+  private static final Category CATEGORY = TestCategories.of(OWNER.identifier(), "test-category");
+  private static final Subject SUBJECT = new Subject(OWNER.identifier(), CATEGORY.identifier(), "test-subject");
 
   private NoteManager noteManager;
   private Event event;
   private SubjectDao subjectDao;
+  private CategoryDao categoryDao;
   private EventDao eventDao;
   private OwnerDao ownerDao;
 
@@ -42,23 +45,33 @@ class NoteManagerIntegrationTest extends DatabaseTest {
       handle.execute("DELETE FROM notes");
       handle.execute("DELETE FROM events");
       handle.execute("DELETE FROM subjects");
+      handle.execute("DELETE FROM categories");
       handle.execute("DELETE FROM owners");
     });
     ownerDao = jdbi.onDemand(OwnerDao.class);
+    categoryDao = jdbi.onDemand(CategoryDao.class);
     subjectDao = jdbi.onDemand(SubjectDao.class);
     eventDao = jdbi.onDemand(EventDao.class);
     NoteDao noteDao = jdbi.onDemand(NoteDao.class);
     TagsDao tagsDao = jdbi.onDemand(TagsDao.class);
     TagsManager tagsManager = new TagsManager(tagsDao);
     ownerDao.upsert(OWNER.identifier().uuid(), OWNER.value(), false);
-    subjectDao.upsert(SUBJECT.identifier().uuid(), SUBJECT.ownerIdentifier().uuid(),
-        SUBJECT.category().value(), SUBJECT.value());
+    storeCategory(CATEGORY);
+    storeSubject(SUBJECT);
     event = Event.builder().owner(OWNER).subject(SUBJECT).value("test-event")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z"))).build();
     eventDao.upsert(event.identifier().uuid(), event.ownerIdentifier().uuid(),
         event.subject().identifier().uuid(), event.value(),
         event.timestamp().toOffsetDateTime());
     noteManager = new NoteManager(jdbi, noteDao, tagsManager);
+  }
+
+  private void storeCategory(Category c) {
+    categoryDao.upsert(c.identifier().uuid(), c.ownerIdentifier().uuid(), c.name(), c.color(), c.icon());
+  }
+
+  private void storeSubject(Subject s) {
+    subjectDao.upsert(s.identifier().uuid(), s.ownerIdentifier().uuid(), s.categoryIdentifier().uuid(), s.value());
   }
 
   // --- store and get ---
@@ -136,9 +149,8 @@ class NoteManagerIntegrationTest extends DatabaseTest {
 
   @Test
   void findBySubjectReturnsMatchingNotes() {
-    Subject other = new Subject(OWNER.identifier(), CATEGORY, "other-subject");
-    subjectDao.upsert(other.identifier().uuid(), other.ownerIdentifier().uuid(),
-        other.category().value(), other.value());
+    Subject other = new Subject(OWNER.identifier(), CATEGORY.identifier(), "other-subject");
+    storeSubject(other);
 
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("note 1")
         .timestamp(new Timestamp(Instant.parse("2026-03-28T10:00:00Z"))).build();
@@ -218,9 +230,10 @@ class NoteManagerIntegrationTest extends DatabaseTest {
   void notesAreIsolatedByOwner() {
     Owner other = new Owner("OTHER-OWNER");
     ownerDao.upsert(other.identifier().uuid(), other.value(), false);
-    Subject otherSubject = new Subject(other.identifier(), CATEGORY, "test-subject");
-    subjectDao.upsert(otherSubject.identifier().uuid(), otherSubject.ownerIdentifier().uuid(),
-        otherSubject.category().value(), otherSubject.value());
+    Category otherCategory = TestCategories.of(other.identifier(), "test-category");
+    storeCategory(otherCategory);
+    Subject otherSubject = new Subject(other.identifier(), otherCategory.identifier(), "test-subject");
+    storeSubject(otherSubject);
 
     Note n1 = Note.builder().owner(OWNER).subject(SUBJECT).value("owner note").build();
     Note n2 = Note.builder().owner(other).subjectIdentifier(otherSubject.identifier())
