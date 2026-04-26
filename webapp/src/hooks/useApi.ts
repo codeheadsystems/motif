@@ -75,6 +75,21 @@ export function useNotes(subjectId: string | null) {
   );
 }
 
+export function useOwner() {
+  return useResource<api.Owner | null>(() => api.getOwner(), []);
+}
+
+export function useProjects() {
+  return useResource<api.Page<api.Project>>(() => api.getProjects(), []);
+}
+
+export function useProject(id: string | null) {
+  return useResource<api.Project | null>(
+    () => (id ? api.getProject(id) : Promise.resolve(null)),
+    [id],
+  );
+}
+
 export function usePatterns(limit = 5) {
   return useResource<api.Page<api.Pattern>>(() => api.getPatterns(limit), [limit]);
 }

@@ -6,6 +6,7 @@ import com.codeheadsystems.motif.server.db.dao.EventDao;
 import com.codeheadsystems.motif.server.db.dao.NoteDao;
 import com.codeheadsystems.motif.server.db.dao.OwnerDao;
 import com.codeheadsystems.motif.server.db.dao.PatternDao;
+import com.codeheadsystems.motif.server.db.dao.ProjectDao;
 import com.codeheadsystems.motif.server.db.dao.SubjectDao;
 import com.codeheadsystems.motif.server.db.dao.TagsDao;
 import dagger.Module;
@@ -76,5 +77,11 @@ public class MotifModule {
   @Singleton
   PatternDao patternDao() {
     return jdbi.onDemand(PatternDao.class);
+  }
+
+  @Provides
+  @Singleton
+  ProjectDao projectDao() {
+    return jdbi.onDemand(ProjectDao.class);
   }
 }

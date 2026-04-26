@@ -4,6 +4,7 @@ import com.codeheadsystems.motif.server.db.dao.OwnerDao;
 import com.codeheadsystems.motif.server.db.dao.TagsDao;
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Owner;
+import com.codeheadsystems.motif.server.db.model.Tier;
 import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -22,7 +23,8 @@ public class OwnerManager {
   }
 
   public void store(Owner owner) {
-    ownerDao.upsert(owner.identifier().uuid(), owner.value(), owner.deleted());
+    ownerDao.upsert(owner.identifier().uuid(), owner.value(), owner.deleted(),
+        owner.tier().name());
   }
 
   public Optional<Owner> get(Identifier identifier) {
@@ -44,11 +46,13 @@ public class OwnerManager {
    * Atomically find-or-create an Owner by value. Safe under concurrent callers:
    * parallel requests for the same (not-yet-existing) owner will converge on
    * one row rather than racing to insert distinct UUIDs that collide on the
-   * `value` unique constraint.
+   * `value` unique constraint. Newly-created owners default to {@link Tier#FREE_SYNCED};
+   * promotion happens via {@link #updateTier} (admin endpoint) or, eventually, Stripe.
    */
   public Owner findOrCreate(String value) {
     Owner candidate = new Owner(value);
-    ownerDao.insertIfAbsentByValue(candidate.identifier().uuid(), candidate.value(), false);
+    ownerDao.insertIfAbsentByValue(candidate.identifier().uuid(), candidate.value(), false,
+        candidate.tier().name());
     return ownerDao.findByValue(candidate.value())
         .orElseThrow(() -> new IllegalStateException(
             "owner missing immediately after insertIfAbsent: " + candidate.value()));
@@ -60,6 +64,14 @@ public class OwnerManager {
       return ownerDao.findByValueIncludingDeleted(normalized);
     }
     return ownerDao.findByValue(normalized);
+  }
+
+  /**
+   * Updates the tier for a non-deleted owner. Returns true if a row was updated.
+   * Called by the admin endpoint and (eventually) the Stripe webhook handler.
+   */
+  public boolean updateTier(Identifier identifier, Tier tier) {
+    return ownerDao.updateTier(identifier.uuid(), tier.name()) > 0;
   }
 
   public boolean softDelete(Identifier identifier) {

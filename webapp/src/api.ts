@@ -27,10 +27,19 @@ async function apiFetch(path: string, options?: RequestInit): Promise<Response> 
   return res;
 }
 
+export type Tier = 'FREE_SYNCED' | 'PREMIUM' | 'BUSINESS';
+
 export interface Owner {
   value: string;
   identifier: { uuid: string };
   deleted: boolean;
+  tier: Tier;
+}
+
+/** True if {@code actual} satisfies the requirement of {@code required}. Mirrors Tier.satisfies. */
+export function tierSatisfies(actual: Tier, required: Tier): boolean {
+  const order: Tier[] = ['FREE_SYNCED', 'PREMIUM', 'BUSINESS'];
+  return order.indexOf(actual) >= order.indexOf(required);
 }
 
 export interface Category {
@@ -46,6 +55,19 @@ export interface Subject {
   categoryIdentifier: { uuid: string };
   value: string;
   identifier: { uuid: string };
+  projectIdentifier: { uuid: string } | null;
+}
+
+export type ProjectStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
+
+export interface Project {
+  ownerIdentifier: { uuid: string };
+  identifier: { uuid: string };
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  createdAt: { timestamp: string };
+  updatedAt: { timestamp: string };
 }
 
 export interface Event {
@@ -162,6 +184,40 @@ export async function createEvent(subjectId: string, value: string, tags: string
 
 export async function deleteEvent(id: string): Promise<void> {
   await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
+}
+
+// --- projects (Premium) ---
+
+export async function getProjects(page = 0, size = 100): Promise<Page<Project>> {
+  const res = await apiFetch(`/api/projects?page=${page}&size=${size}`);
+  return res.json();
+}
+
+export async function getProject(id: string): Promise<Project> {
+  const res = await apiFetch(`/api/projects/${id}`);
+  return res.json();
+}
+
+export async function createProject(name: string, description: string | null,
+                                    status: ProjectStatus = 'ACTIVE'): Promise<Project> {
+  const res = await apiFetch('/api/projects', {
+    method: 'POST',
+    body: JSON.stringify({ name, description, status }),
+  });
+  return res.json();
+}
+
+export async function updateProject(id: string, name: string, description: string | null,
+                                    status: ProjectStatus): Promise<Project> {
+  const res = await apiFetch(`/api/projects/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, description, status }),
+  });
+  return res.json();
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  await apiFetch(`/api/projects/${id}`, { method: 'DELETE' });
 }
 
 // --- patterns ---

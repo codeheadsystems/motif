@@ -5,7 +5,9 @@ import com.codeheadsystems.motif.server.command.InitDatabaseCommand;
 import com.codeheadsystems.motif.server.dagger.DaggerMotifComponent;
 import com.codeheadsystems.motif.server.dagger.MotifComponent;
 import com.codeheadsystems.motif.server.dagger.MotifModule;
+import com.codeheadsystems.motif.server.resource.AdminResource;
 import com.codeheadsystems.motif.server.resource.SessionResource;
+import com.codeheadsystems.motif.server.resource.TierRequiredExceptionMapper;
 import com.codeheadsystems.motif.server.db.dao.OpaquePendingSessionDao;
 import com.codeheadsystems.motif.server.db.dao.OpaqueSessionDao;
 import com.codeheadsystems.motif.server.store.JdbiCredentialStore;
@@ -68,7 +70,14 @@ public class MotifApplication extends Application<MotifConfiguration> {
     environment.jersey().register(component.eventResource());
     environment.jersey().register(component.noteResource());
     environment.jersey().register(component.patternResource());
+    environment.jersey().register(component.projectResource());
     environment.jersey().register(new SessionResource());
+    environment.jersey().register(new TierRequiredExceptionMapper());
+
+    // Admin endpoints (tier promotion etc.) — protected by MOTIF_ADMIN_TOKEN env var.
+    environment.jersey().register(new AdminResource(
+        component.ownerManager(),
+        System.getenv("MOTIF_ADMIN_TOKEN")));
 
     // Background pattern detection sweep — replaces each owner's pattern set on a fixed cadence.
     environment.lifecycle().manage(new PatternDetectionTask(

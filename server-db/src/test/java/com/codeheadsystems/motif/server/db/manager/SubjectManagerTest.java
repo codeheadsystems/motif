@@ -67,6 +67,7 @@ class SubjectManagerTest {
         SUBJECT.identifier().uuid(),
         SUBJECT.ownerIdentifier().uuid(),
         SUBJECT.categoryIdentifier().uuid(),
+        null,
         SUBJECT.value());
   }
 
@@ -161,6 +162,7 @@ class SubjectManagerTest {
         updated.identifier().uuid(),
         updated.ownerIdentifier().uuid(),
         updated.categoryIdentifier().uuid(),
+        null,
         "updated");
   }
 

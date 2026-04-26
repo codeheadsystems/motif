@@ -52,7 +52,7 @@ class OwnerManagerTest {
   void storeCallsUpsertWithCorrectArgs() {
     ownerManager.store(OWNER);
 
-    verify(ownerDao).upsert(OWNER.identifier().uuid(), OWNER.value(), false);
+    verify(ownerDao).upsert(OWNER.identifier().uuid(), OWNER.value(), false, "FREE_SYNCED");
   }
 
   // --- get ---

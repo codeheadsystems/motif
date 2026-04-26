@@ -49,11 +49,19 @@ public class SubjectManager {
         owner.identifier().uuid(), category.identifier().uuid(), value);
   }
 
+  public Page<Subject> findByProject(Owner owner, Identifier projectIdentifier, PageRequest pageRequest) {
+    List<Subject> results = subjectDao.findByOwnerAndProject(
+        owner.identifier().uuid(), projectIdentifier.uuid(),
+        pageRequest.pageSize() + 1, pageRequest.offset());
+    return Page.of(results, pageRequest);
+  }
+
   public void store(Subject subject) {
     subjectDao.upsert(
         subject.identifier().uuid(),
         subject.ownerIdentifier().uuid(),
         subject.categoryIdentifier().uuid(),
+        subject.projectIdentifier() == null ? null : subject.projectIdentifier().uuid(),
         subject.value());
   }
 
@@ -75,6 +83,7 @@ public class SubjectManager {
           subject.identifier().uuid(),
           subject.ownerIdentifier().uuid(),
           subject.categoryIdentifier().uuid(),
+          subject.projectIdentifier() == null ? null : subject.projectIdentifier().uuid(),
           subject.value());
     });
   }

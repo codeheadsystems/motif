@@ -10,8 +10,9 @@ import org.jspecify.annotations.Nullable;
  * @param value      The owner value.
  * @param identifier The identifier of the owner.
  * @param deleted    Whether this owner has been soft-deleted.
+ * @param tier       Subscription tier; defaults to FREE_SYNCED for newly-created owners.
  */
-public record Owner(String value, @Nullable Identifier identifier, boolean deleted) {
+public record Owner(String value, @Nullable Identifier identifier, boolean deleted, Tier tier) {
 
   public Owner {
     value = Objects.requireNonNull(value, "value cannot be null")
@@ -24,10 +25,16 @@ public record Owner(String value, @Nullable Identifier identifier, boolean delet
       throw new IllegalArgumentException("value cannot be longer than 256 characters");
     }
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
+    tier = Objects.requireNonNullElse(tier, Tier.FREE_SYNCED);
   }
 
   public Owner(String value) {
-    this(value, null, false);
+    this(value, null, false, Tier.FREE_SYNCED);
+  }
+
+  /** Convenience constructor preserved for callers that don't care about tier. Defaults FREE_SYNCED. */
+  public Owner(String value, @Nullable Identifier identifier, boolean deleted) {
+    this(value, identifier, deleted, Tier.FREE_SYNCED);
   }
 
   public static Builder from(Owner owner) {
@@ -42,6 +49,7 @@ public record Owner(String value, @Nullable Identifier identifier, boolean delet
     private String value;
     private Identifier identifier;
     private boolean deleted;
+    private Tier tier;
 
     private Builder() {
     }
@@ -52,6 +60,7 @@ public record Owner(String value, @Nullable Identifier identifier, boolean delet
       builder.value = owner.value();
       builder.identifier = owner.identifier();
       builder.deleted = owner.deleted();
+      builder.tier = owner.tier();
       return builder;
     }
 
@@ -70,8 +79,13 @@ public record Owner(String value, @Nullable Identifier identifier, boolean delet
       return this;
     }
 
+    public Builder tier(Tier tier) {
+      this.tier = tier;
+      return this;
+    }
+
     public Owner build() {
-      return new Owner(value, identifier, deleted);
+      return new Owner(value, identifier, deleted, tier);
     }
   }
 }

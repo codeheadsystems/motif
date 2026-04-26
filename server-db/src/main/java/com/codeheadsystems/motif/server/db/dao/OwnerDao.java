@@ -2,6 +2,7 @@ package com.codeheadsystems.motif.server.db.dao;
 
 import com.codeheadsystems.motif.server.db.model.Identifier;
 import com.codeheadsystems.motif.server.db.model.Owner;
+import com.codeheadsystems.motif.server.db.model.Tier;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -17,19 +18,33 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 @RegisterRowMapper(OwnerDao.OwnerRowMapper.class)
 public interface OwnerDao {
 
-  @SqlUpdate("INSERT INTO owners (uuid, value, deleted) "
-      + "VALUES (:uuid, :value, :deleted) "
+  @SqlUpdate("INSERT INTO owners (uuid, value, deleted, tier) "
+      + "VALUES (:uuid, :value, :deleted, :tier) "
       + "ON CONFLICT (uuid) DO UPDATE SET "
       + "value = EXCLUDED.value, "
-      + "deleted = EXCLUDED.deleted")
+      + "deleted = EXCLUDED.deleted, "
+      + "tier = EXCLUDED.tier")
   void upsert(@Bind("uuid") UUID uuid, @Bind("value") String value,
-              @Bind("deleted") boolean deleted);
+              @Bind("deleted") boolean deleted, @Bind("tier") String tier);
 
-  @SqlUpdate("INSERT INTO owners (uuid, value, deleted) "
-      + "VALUES (:uuid, :value, :deleted) "
+  /** Backwards-compatible overload that defaults tier to FREE_SYNCED. */
+  default void upsert(UUID uuid, String value, boolean deleted) {
+    upsert(uuid, value, deleted, "FREE_SYNCED");
+  }
+
+  @SqlUpdate("INSERT INTO owners (uuid, value, deleted, tier) "
+      + "VALUES (:uuid, :value, :deleted, :tier) "
       + "ON CONFLICT (value) DO NOTHING")
   void insertIfAbsentByValue(@Bind("uuid") UUID uuid, @Bind("value") String value,
-                             @Bind("deleted") boolean deleted);
+                             @Bind("deleted") boolean deleted, @Bind("tier") String tier);
+
+  /** Backwards-compatible overload that defaults tier to FREE_SYNCED. */
+  default void insertIfAbsentByValue(UUID uuid, String value, boolean deleted) {
+    insertIfAbsentByValue(uuid, value, deleted, "FREE_SYNCED");
+  }
+
+  @SqlUpdate("UPDATE owners SET tier = :tier WHERE uuid = :uuid AND deleted = false")
+  int updateTier(@Bind("uuid") UUID uuid, @Bind("tier") String tier);
 
   @SqlQuery("SELECT * FROM owners WHERE uuid = :uuid AND deleted = false")
   Optional<Owner> findByIdentifier(@Bind("uuid") UUID uuid);
@@ -64,6 +79,7 @@ public interface OwnerDao {
           .value(rs.getString("value"))
           .identifier(new Identifier(rs.getObject("uuid", UUID.class)))
           .deleted(rs.getBoolean("deleted"))
+          .tier(Tier.valueOf(rs.getString("tier")))
           .build();
     }
   }

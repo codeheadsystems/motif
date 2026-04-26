@@ -6,18 +6,21 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Subjects are value objects that live in a category (referenced by id). They are strings less
- * than 128 chars.
+ * than 128 chars. Optionally, a Subject may also belong to a Project (Premium tier) — that
+ * groups it with other Subjects under a goal/initiative independent of the Category taxonomy.
  *
  * @param ownerIdentifier    The identifier of the owner.
  * @param categoryIdentifier The identifier of the owning category.
  * @param value              The value of the subject.
  * @param identifier         The identifier of the subject.
+ * @param projectIdentifier  The identifier of the owning project, or null.
  */
 public record Subject(
     Identifier ownerIdentifier,
     Identifier categoryIdentifier,
     String value,
-    @Nullable Identifier identifier) {
+    @Nullable Identifier identifier,
+    @Nullable Identifier projectIdentifier) {
 
   public Subject {
     Objects.requireNonNull(ownerIdentifier, "ownerIdentifier cannot be null");
@@ -33,8 +36,14 @@ public record Subject(
     identifier = Objects.requireNonNullElseGet(identifier, Identifier::new);
   }
 
+  /** Backwards-compatible 4-arg constructor (no project). */
+  public Subject(Identifier ownerIdentifier, Identifier categoryIdentifier, String value,
+                 @Nullable Identifier identifier) {
+    this(ownerIdentifier, categoryIdentifier, value, identifier, null);
+  }
+
   public Subject(Identifier ownerIdentifier, Identifier categoryIdentifier, String value) {
-    this(ownerIdentifier, categoryIdentifier, value, null);
+    this(ownerIdentifier, categoryIdentifier, value, null, null);
   }
 
   public static Builder from(Subject subject) {
@@ -50,6 +59,7 @@ public record Subject(
     private Identifier categoryIdentifier;
     private String value;
     private Identifier identifier;
+    private Identifier projectIdentifier;
 
     private Builder() {
     }
@@ -61,6 +71,7 @@ public record Subject(
       builder.categoryIdentifier = subject.categoryIdentifier();
       builder.value = subject.value();
       builder.identifier = subject.identifier();
+      builder.projectIdentifier = subject.projectIdentifier();
       return builder;
     }
 
@@ -92,8 +103,17 @@ public record Subject(
       return this;
     }
 
+    public Builder project(Project project) {
+      return projectIdentifier(project == null ? null : project.identifier());
+    }
+
+    public Builder projectIdentifier(@Nullable Identifier projectIdentifier) {
+      this.projectIdentifier = projectIdentifier;
+      return this;
+    }
+
     public Subject build() {
-      return new Subject(ownerIdentifier, categoryIdentifier, value, identifier);
+      return new Subject(ownerIdentifier, categoryIdentifier, value, identifier, projectIdentifier);
     }
   }
 }
