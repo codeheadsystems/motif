@@ -11,7 +11,7 @@ dagger = "2.59.2"
 dropwizard = "5.0.1"
 flyway = "12.5.0"
 hofmann = "1.4.0"
-jdbi3 = "3.52.1"
+jdbi3 = "3.53.0"
 # Jetty: pinned >= 12.1.6 to override the 12.1.5 pulled by Dropwizard 5.0.1.
 # Applied via the jetty-bom + jetty-ee10-bom platforms in server/build.gradle.kts.
 jetty = "12.1.8"
