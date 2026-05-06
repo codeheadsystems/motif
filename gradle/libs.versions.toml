@@ -14,7 +14,7 @@ hofmann = "1.4.0"
 jdbi3 = "3.53.0"
 # Jetty: pinned >= 12.1.6 to override the 12.1.5 pulled by Dropwizard 5.0.1.
 # Applied via the jetty-bom + jetty-ee10-bom platforms in server/build.gradle.kts.
-jetty = "12.1.8"
+jetty = "12.1.9"
 jspecify = "1.0.0"
 nimbus-jose-jwt = "10.9"
 jsr305 = "3.0.2"
